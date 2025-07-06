@@ -1,115 +1,110 @@
-﻿using MongoDB.Driver;
-using TransitGtfsApi.Enums;
+﻿using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Service.Database;
 using TransitGtfsApi.Utils;
+using Microsoft.EntityFrameworkCore;
 
 namespace TransitGtfsApi.Service;
 
-public class CalendarService : MongoService<Calendar>, ICalendarService
+public class CalendarService : ICalendarService
 {
+    private readonly TransitDbContext _dbContext;
+    private readonly ILogger<CalendarService> _logger;
     private readonly IRedisService _redis;
 
-    public CalendarService(IMongoDatabase database, ILogger<CalendarService> logger, IRedisService redis)
-        : base(database, logger, "gtfs_calendar")
+    public CalendarService(TransitDbContext dbContext, ILogger<CalendarService> logger, IRedisService redis)
     {
+        _dbContext = dbContext;
+        _logger = logger;
         _redis = redis;
-
-        IndexKeysDefinition<Calendar> indexKeysDefinition = Builders<Calendar>.IndexKeys.Ascending(c => c.ServiceId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<Calendar>(indexKeysDefinition));
     }
 
     public async Task<List<Calendar>> GetAllAsync()
     {
-        return await _collection.Find(Builders<Calendar>.Filter.Empty).ToListAsync();
+        return await _dbContext.Calendars.ToListAsync();
     }
 
     public async Task<Calendar?> GetByIdAsync(string serviceId)
     {
         return await _redis.GetOrSetAsync(
             $"calendar-{serviceId}",
-            async () => await _collection.Find(c => c.ServiceId == serviceId).FirstOrDefaultAsync()
+            async () => await _dbContext.Calendars.FirstOrDefaultAsync(c => c.ServiceId == serviceId)
         );
     }
 
     public async Task ImportDataAsync(string directoryPath)
     {
         string filePath = Path.Combine(directoryPath, "calendar.txt");
-
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("File not found: {FilePath}", filePath);
+            _logger.LogWarning($"File not found: {filePath}");
             return;
         }
-
-        await ImportFromCsvAsync(filePath, fields =>
+        try
         {
-            int mondayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("monday", null), 0);
-            int tuesdayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("tuesday", null), 0);
-            int wednesdayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("wednesday", null), 0);
-            int thursdayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("thursday", null), 0);
-            int fridayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("friday", null), 0);
-            int saturdayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("saturday", null), 0);
-            int sundayValue = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("sunday", null), 0);
-
-            if (!EnumUtil.TryFromValue(mondayValue, out StatusType monday))
+            _logger.LogInformation($"Importing data from {filePath}");
+            var entities = new List<Calendar>();
+            string[] lines = await File.ReadAllLinesAsync(filePath);
+            if (lines.Length <= 1)
             {
-                _logger.LogWarning("Invalid monday value: {mondayValue}. Using default value.", mondayValue);
-                monday = StatusType.Inactive;
+                _logger.LogWarning($"No data found in {filePath}");
+                return;
             }
-
-            if (!EnumUtil.TryFromValue(tuesdayValue, out StatusType tuesday))
+            string[] headers = lines[0].Split(',');
+            for (int i = 1; i < lines.Length; i++)
             {
-                _logger.LogWarning("Invalid tuesday value: {tuesdayValue}. Using default value.", tuesdayValue);
-                tuesday = StatusType.Inactive;
+                string line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                string[] values = line.Split(',');
+                var rowData = new Dictionary<string, string?>();
+                for (int j = 0; j < headers.Length; j++)
+                {
+                    if (j < values.Length)
+                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                }
+                int mondayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("monday", null), 0);
+                int tuesdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("tuesday", null), 0);
+                int wednesdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wednesday", null), 0);
+                int thursdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("thursday", null), 0);
+                int fridayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("friday", null), 0);
+                int saturdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("saturday", null), 0);
+                int sundayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("sunday", null), 0);
+                if (!EnumUtil.TryFromValue(mondayValue, out StatusType monday)) monday = StatusType.Inactive;
+                if (!EnumUtil.TryFromValue(tuesdayValue, out StatusType tuesday)) tuesday = StatusType.Inactive;
+                if (!EnumUtil.TryFromValue(wednesdayValue, out StatusType wednesday)) wednesday = StatusType.Inactive;
+                if (!EnumUtil.TryFromValue(thursdayValue, out StatusType thursday)) thursday = StatusType.Inactive;
+                if (!EnumUtil.TryFromValue(fridayValue, out StatusType friday)) friday = StatusType.Inactive;
+                if (!EnumUtil.TryFromValue(saturdayValue, out StatusType saturday)) saturday = StatusType.Inactive;
+                if (!EnumUtil.TryFromValue(sundayValue, out StatusType sunday)) sunday = StatusType.Inactive;
+                var entity = new Calendar
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
+                    Monday = monday,
+                    Tuesday = tuesday,
+                    Wednesday = wednesday,
+                    Thursday = thursday,
+                    Friday = friday,
+                    Saturday = saturday,
+                    Sunday = sunday,
+                    StartDate = rowData.GetValueOrDefault("start_date", "") ?? "",
+                    EndDate = rowData.GetValueOrDefault("end_date", "") ?? "",
+                };
+                entities.Add(entity);
             }
-
-            if (!EnumUtil.TryFromValue(wednesdayValue, out StatusType wednesday))
+            if (entities.Count > 0)
             {
-                _logger.LogWarning("Invalid wednesday value: {wednesdayValue}. Using default value.", wednesdayValue);
-                wednesday = StatusType.Inactive;
+                _dbContext.Calendars.AddRange(entities);
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
             }
-
-            if (!EnumUtil.TryFromValue(thursdayValue, out StatusType thursday))
-            {
-                _logger.LogWarning("Invalid thursday value: {thursdayValue}. Using default value.", thursdayValue);
-                thursday = StatusType.Inactive;
-            }
-
-            if (!EnumUtil.TryFromValue(fridayValue, out StatusType friday))
-            {
-                _logger.LogWarning("Invalid friday value: {fridayValue}. Using default value.", fridayValue);
-                friday = StatusType.Inactive;
-            }
-
-            if (!EnumUtil.TryFromValue(saturdayValue, out StatusType saturday))
-            {
-                _logger.LogWarning("Invalid saturday value: {saturdayValue}. Using default value.", saturdayValue);
-                saturday = StatusType.Inactive;
-            }
-
-            if (!EnumUtil.TryFromValue(sundayValue, out StatusType sunday))
-            {
-                _logger.LogWarning("Invalid sunday value: {sundayValue}. Using default value.", sundayValue);
-                sunday = StatusType.Inactive;
-            }
-
-            return new Calendar
-            {
-                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                ServiceId = fields.GetValueOrDefault("service_id", "") ?? "",
-                Monday = monday,
-                Tuesday = tuesday,
-                Wednesday = wednesday,
-                Thursday = thursday,
-                Friday = friday,
-                Saturday = saturday,
-                Sunday = sunday,
-                StartDate = fields.GetValueOrDefault("start_date", "") ?? "",
-                EndDate = fields.GetValueOrDefault("end_date", "") ?? "",
-            };
-        });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"\nError importing data from {filePath}");
+            throw;
+        }
     }
 }

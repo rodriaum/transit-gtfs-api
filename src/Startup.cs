@@ -3,9 +3,9 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using MongoDB.Driver;
 using Serilog;
 using TransitGtfsApi.Filter;
 using TransitGtfsApi.HealthChecks;
@@ -43,7 +43,7 @@ public class Startup
             if (File.Exists(rootPath))
             {
                 Console.WriteLine(".env file found in root directory!");
-                Env.Load(rootPath);
+                Env.Load(Path.GetFullPath(rootPath));
                 Console.WriteLine(".env file loaded successfully!");
             }
             else
@@ -210,29 +210,15 @@ public class Startup
 
     private void ConfigureDatabaseServices(IServiceCollection services)
     {
-        services.AddSingleton<IMongoClient>(sp =>
+        services.AddDbContext<TransitDbContext>(options =>
         {
-            string? connection = Environment.GetEnvironmentVariable("MONGODB_CONNECTION");
-            ILogger<Startup> logger = sp.GetRequiredService<ILogger<Startup>>();
+            string? connection = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
+            string? dbName = Environment.GetEnvironmentVariable("POSTGRES_DATABASE_NAME");
 
-            logger.LogInformation("Setting up MongoDB connection...");
+            string fullConnection = $"{connection};Database={dbName}";
 
-            MongoClientSettings settings = MongoClientSettings.FromConnectionString(connection!);
-            settings.MaxConnectionPoolSize = 1000;
-            settings.MinConnectionPoolSize = 10;
-            settings.WaitQueueSize = 10000;
-
-            return new MongoClient(settings);
-        });
-
-        services.AddSingleton(sp =>
-        {
-            string? dbName = Environment.GetEnvironmentVariable("MONGODB_DATABASE_NAME")?.ToLower();
-            ILogger<Startup> logger = sp.GetRequiredService<ILogger<Startup>>();
-
-            logger.LogInformation($"Using MongoDB database: {dbName}");
-
-            return sp.GetRequiredService<IMongoClient>().GetDatabase(dbName!);
+            options.UseNpgsql(fullConnection);
+            options.UseSnakeCaseNamingConvention();
         });
     }
 
@@ -243,11 +229,6 @@ public class Startup
             string? connection = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
             string? instanceName = Environment.GetEnvironmentVariable("REDIS_INSTANCE_NAME")?.ToLower();
 
-            ILogger<Startup> logger = services.BuildServiceProvider().GetRequiredService<ILogger<Startup>>();
-
-            logger.LogInformation("Configuring Redis connection...");
-            logger.LogInformation($"Redis Instance Name: {instanceName}");
-
             options.Configuration = connection;
             options.InstanceName = $"{instanceName}:";
         });
@@ -257,20 +238,19 @@ public class Startup
 
     private void ConfigureApplicationServices(IServiceCollection services)
     {
-        services.AddSingleton<IGtfsDataService, GtfsDataService>();
+        services.AddScoped<IAgencyService, AgencyService>();
+        services.AddScoped<ICalendarService, CalendarService>();
+        services.AddScoped<ICalendarDatesService, CalendarDatesService>();
+        services.AddScoped<IFareAttributesService, FareAttributesService>();
+        services.AddScoped<IFareRulesService, FareRulesService>();
+        services.AddScoped<IRoutesService, RoutesService>();
+        services.AddScoped<IShapesService, ShapesService>();
+        services.AddScoped<IStopsService, StopsService>();
+        services.AddScoped<IStopTimesService, StopTimesService>();
+        services.AddScoped<ITransfersService, TransfersService>();
+        services.AddScoped<ITripsService, TripsService>();
+        services.AddScoped<IGtfsDataService, GtfsDataService>();
         services.AddSingleton<IGtfsFileService, GtfsFileService>();
-
-        services.AddSingleton<IAgencyService, AgencyService>();
-        services.AddSingleton<ICalendarService, CalendarService>();
-        services.AddSingleton<ICalendarDatesService, CalendarDatesService>();
-        services.AddSingleton<IFareAttributesService, FareAttributesService>();
-        services.AddSingleton<IFareRulesService, FareRulesService>();
-        services.AddSingleton<IRoutesService, RoutesService>();
-        services.AddSingleton<IShapesService, ShapesService>();
-        services.AddSingleton<IStopsService, StopsService>();
-        services.AddSingleton<IStopTimesService, StopTimesService>();
-        services.AddSingleton<ITransfersService, TransfersService>();
-        services.AddSingleton<ITripsService, TripsService>();
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)
@@ -326,6 +306,12 @@ public class Startup
         app.UseResponseCaching();
         app.UseResponseCompression();
 
+        using (IServiceScope scope = app.ApplicationServices.CreateScope())
+        {
+            TransitDbContext db = scope.ServiceProvider.GetRequiredService<TransitDbContext>();
+            db.Database.Migrate();
+        }
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
@@ -345,7 +331,7 @@ public class Startup
         }
         catch (Exception ex)
         {
-            logger.LogError($"Unable to configure GTFS data service. Maybe the data is being loaded!\n -> {ex.Message}");
+            logger.LogError($"Unable to configure GTFS data service.\n -> {ex.Message}");
             Task.Delay(5000).Wait();
             Environment.Exit(0);
         }

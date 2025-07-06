@@ -1,6 +1,6 @@
-﻿using TransitGtfsApi.Interfaces.Database;
+﻿using Microsoft.Extensions.Caching.Distributed;
+using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Utils;
-using Microsoft.Extensions.Caching.Distributed;
 
 namespace TransitGtfsApi.Service.Database
 {
@@ -22,7 +22,17 @@ namespace TransitGtfsApi.Service.Database
             try
             {
                 key = key.ToLower();
-                string? data = await _cache.GetStringAsync(key);
+                string? data = null;
+
+                try
+                {
+                    data = await _cache.GetStringAsync(key);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[Redis] Error accessing Redis (auth/connection issue?). Skipping cache and calling factory for key: {Key}", key);
+                    return await factory();
+                }
 
                 if (!string.IsNullOrEmpty(data))
                 {
@@ -36,17 +46,24 @@ namespace TransitGtfsApi.Service.Database
 
                 if (result != null)
                 {
-                    DistributedCacheEntryOptions options = new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = _duration
-                    };
-
                     string? json = await JsonUtil.ObjectToStringAsync<T>(result);
 
                     if (!string.IsNullOrEmpty(json) && !json.Equals("[]"))
                     {
-                        await _cache.SetStringAsync(key, json, options);
-                        _logger.LogDebug($"[Redis] Item cached with key: {key}");
+                        DistributedCacheEntryOptions options = new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = _duration
+                        };
+
+                        try
+                        {
+                            await _cache.SetStringAsync(key, json, options);
+                            _logger.LogDebug($"[Redis] Item cached with key: {key}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "[Redis] Error setting item in cache with key: {Key}", key);
+                        }
                     }
                 }
 

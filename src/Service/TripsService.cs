@@ -1,47 +1,37 @@
-using MongoDB.Driver;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Service.Database;
 using TransitGtfsApi.Utils;
+using Microsoft.EntityFrameworkCore;
 
 namespace TransitGtfsApi.Service;
 
-public class TripsService : MongoService<Trip>, ITripsService
+public class TripsService : ITripsService
 {
+    private readonly TransitDbContext _dbContext;
+    private readonly ILogger<TripsService> _logger;
     private readonly IRedisService _redis;
 
-    public TripsService(IMongoDatabase database, ILogger<TripsService> logger, IRedisService redis)
-        : base(database, logger, "gtfs_trips")
+    public TripsService(TransitDbContext dbContext, ILogger<TripsService> logger, IRedisService redis)
     {
+        _dbContext = dbContext;
+        _logger = logger;
         _redis = redis;
-
-        IndexKeysDefinition<Trip> indexKeysDefinition = Builders<Trip>.IndexKeys.Ascending(t => t.TripId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<Trip>(indexKeysDefinition));
-
-        indexKeysDefinition = Builders<Trip>.IndexKeys.Ascending(t => t.RouteId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<Trip>(indexKeysDefinition));
-
-        indexKeysDefinition = Builders<Trip>.IndexKeys.Ascending(t => t.ServiceId);
-        _collection.Indexes.CreateOne(new CreateIndexModel<Trip>(indexKeysDefinition));
     }
 
     public async Task<List<Trip>> GetAllAsync(int page = 1, int pageSize = 100)
     {
         int skip = (page - 1) * pageSize;
-
-        return await _collection.Find(Builders<Trip>.Filter.Empty)
-                                .Skip(skip)
-                                .Limit(pageSize)
-                                .ToListAsync();
+        return await _dbContext.Trips.Skip(skip).Take(pageSize).ToListAsync();
     }
 
     public async Task<Trip?> GetByIdAsync(string tripId)
     {
         return await _redis.GetOrSetAsync(
             $"trip-{tripId}",
-            async () => await _collection.Find(t => t.TripId == tripId).FirstOrDefaultAsync()
+            async () => await _dbContext.Trips.FirstOrDefaultAsync(t => t.TripId == tripId)
         );
     }
 
@@ -52,10 +42,10 @@ public class TripsService : MongoService<Trip>, ITripsService
             async () =>
             {
                 var skip = (page - 1) * pageSize;
-                return await _collection.Find(t => t.RouteId == routeId)
-                                        .Skip(skip)
-                                        .Limit(pageSize)
-                                        .ToListAsync();
+                return await _dbContext.Trips.Where(t => t.RouteId == routeId)
+                                             .Skip(skip)
+                                             .Take(pageSize)
+                                             .ToListAsync();
             }
         );
     }
@@ -66,14 +56,8 @@ public class TripsService : MongoService<Trip>, ITripsService
             $"trips-batch-{string.Join("-", tripIds.OrderBy(id => id))}",
             async () =>
             {
-                var filter = Builders<Trip>.Filter.In(t => t.TripId, tripIds);
-
-                var trips = await _collection.Find(filter).ToListAsync();
-
-                return tripIds
-                    .Select(id => trips.FirstOrDefault(t => t.TripId == id))
-                    .Where(t => t != null)
-                    .ToList();
+                var trips = await _dbContext.Trips.Where(t => tripIds.Contains(t.TripId)).ToListAsync();
+                return tripIds.Select(id => trips.FirstOrDefault(t => t.TripId == id)).Where(t => t != null).ToList();
             }
         );
     }
@@ -81,32 +65,63 @@ public class TripsService : MongoService<Trip>, ITripsService
     public async Task ImportDataAsync(string directoryPath)
     {
         string filePath = Path.Combine(directoryPath, "trips.txt");
-
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("File not found: {FilePath}", filePath);
+            _logger.LogWarning($"File not found: {filePath}");
             return;
         }
-
-        await ImportFromCsvAsync(filePath, fields =>
+        try
         {
-            int wheelchairAccessibleId = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("wheelchair_accessible", null), -1);
-            int directionId = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("direction_id", null), -1);
-            int bikesAllowedId = NumberUtil.ParseIntSafe(fields.GetValueOrDefault("bikes_allowed", null), -1);
-
-            return new Trip
+            _logger.LogInformation($"Importing data from {filePath}");
+            var entities = new List<Trip>();
+            string[] lines = await File.ReadAllLinesAsync(filePath);
+            if (lines.Length <= 1)
             {
-                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
-                RouteId = fields.GetValueOrDefault("route_id", "") ?? "",
-                ServiceId = fields.GetValueOrDefault("service_id", "") ?? "",
-                TripId = fields.GetValueOrDefault("trip_id", "") ?? "",
-                TripHeadsign = fields.GetValueOrDefault("trip_headsign", "") ?? "",
-                WheelchairAccessible = wheelchairAccessibleId != -1 ? EnumUtil.FromValue<TrinaryOption>(wheelchairAccessibleId) : null,
-                DirectionId = directionId != -1 ? EnumUtil.FromValue<DirectionType>(directionId) : null,
-                BlockId = fields.GetValueOrDefault("block_id", "") ?? "",
-                ShapeId = fields.GetValueOrDefault("shape_id", "") ?? "",
-                BikesAllowed = bikesAllowedId != -1 ? EnumUtil.FromValue<TrinaryOption>(bikesAllowedId) : null,
-            };
-        });
+                _logger.LogWarning($"No data found in {filePath}");
+                return;
+            }
+            string[] headers = lines[0].Split(',');
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                string[] values = line.Split(',');
+                var rowData = new Dictionary<string, string?>();
+                for (int j = 0; j < headers.Length; j++)
+                {
+                    if (j < values.Length)
+                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                }
+                int wheelchairAccessibleId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wheelchair_accessible", null), -1);
+                int directionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("direction_id", null), -1);
+                int bikesAllowedId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("bikes_allowed", null), -1);
+                var entity = new Trip
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    RouteId = rowData.GetValueOrDefault("route_id", "") ?? "",
+                    ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
+                    TripId = rowData.GetValueOrDefault("trip_id", "") ?? "",
+                    TripHeadsign = rowData.GetValueOrDefault("trip_headsign", null),
+                    TripShortName = rowData.GetValueOrDefault("trip_short_name", null),
+                    DirectionId = directionId != -1 ? EnumUtil.FromValue<DirectionType>(directionId) : null,
+                    BlockId = rowData.GetValueOrDefault("block_id", null),
+                    ShapeId = rowData.GetValueOrDefault("shape_id", null),
+                    WheelchairAccessible = wheelchairAccessibleId != -1 ? EnumUtil.FromValue<TrinaryOption>(wheelchairAccessibleId) : null,
+                    BikesAllowed = bikesAllowedId != -1 ? EnumUtil.FromValue<TrinaryOption>(bikesAllowedId) : null,
+                };
+                entities.Add(entity);
+            }
+            if (entities.Count > 0)
+            {
+                _dbContext.Trips.AddRange(entities);
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"\nError importing data from {filePath}");
+            throw;
+        }
     }
 }

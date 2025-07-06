@@ -1,5 +1,6 @@
-using TransitGtfsApi.Interfaces.Gtfs;
 using System.IO.Compression;
+using TransitGtfsApi.Interfaces.Gtfs;
+using TransitGtfsApi.Models;
 
 namespace TransitGtfsApi.Service.Gtfs;
 
@@ -14,6 +15,7 @@ public class GtfsFileService : IGtfsFileService
         _logger = logger;
     }
 
+    // TODO: Verify why is returning only one item
     public async Task<List<string>> EnsureGtfsFilesExistAsync()
     {
         List<string> gtfsDirectories = new List<string>();
@@ -23,16 +25,18 @@ public class GtfsFileService : IGtfsFileService
             Directory.CreateDirectory(Constant.ExtractPath);
         }
 
-        if (Constant.GtfsFileUrls.Count == 0)
+        if (Constant.GtfsDataList.Count == 0)
         {
             _logger.LogWarning("No GTFS URLs configured. Please configure at least one URL in Constant.GtfsFileUrls.");
             return gtfsDirectories;
         }
 
-        for (int i = 0; i < Constant.GtfsFileUrls.Count; i++)
+        for (int i = 0; i < Constant.GtfsDataList.Count; i++)
         {
-            string gtfsUrl = Constant.GtfsFileUrls[i];
-            string providerFolderName = $"provider_{i + 1}";
+            GtfsData gtfsData = Constant.GtfsDataList[i];
+
+            string gtfsUrl = gtfsData.Url;
+            string providerFolderName = gtfsData.AgencyKey;
             string providerDirectory = Path.Combine(Constant.ExtractPath, providerFolderName);
 
             if (!Directory.Exists(providerDirectory))
@@ -40,7 +44,9 @@ public class GtfsFileService : IGtfsFileService
                 Directory.CreateDirectory(providerDirectory);
             }
 
-            bool needsDownload = !AreRequiredFilesPresent(providerDirectory);
+            List<string> ignoredFiles = gtfsData.IgnoredFiles;
+
+            bool needsDownload = !AreRequiredFilesPresent(providerDirectory, ignoredFiles);
 
             if (needsDownload)
             {
@@ -52,8 +58,10 @@ public class GtfsFileService : IGtfsFileService
                     Directory.CreateDirectory(Constant.TempDownloadFolder);
                 }
 
-                await DownloadGtfsFileAsync(gtfsUrl, tempZipPath);
-                ExtractGtfsFile(tempZipPath, providerDirectory);
+                if (await DownloadGtfsFileAsync(gtfsUrl, tempZipPath))
+                    continue;
+
+                ExtractGtfsFile(tempZipPath, providerDirectory, ignoredFiles);
 
                 try
                 {
@@ -90,41 +98,44 @@ public class GtfsFileService : IGtfsFileService
         return gtfsDirectories;
     }
 
-    private bool AreRequiredFilesPresent(string directoryPath)
+    private bool AreRequiredFilesPresent(string directoryPath, List<string> ignoredFiles)
     {
         string[] requiredFiles = { "agency.txt", "calendar.txt", "calendar_dates.txt", "fare_attributes.txt",
-                                   "fare_rules.txt", "routes.txt", "shapes.txt", "stops.txt",
-                                   "stop_times.txt", "transfers.txt", "trips.txt" };
+                               "fare_rules.txt", "routes.txt", "shapes.txt", "stops.txt",
+                               "stop_times.txt", "transfers.txt", "trips.txt" };
 
-        foreach (string file in requiredFiles)
-        {
-            if (!File.Exists(Path.Combine(directoryPath, file)))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return requiredFiles
+            .Where(file => !ignoredFiles.Contains(file))
+            .All(file => File.Exists(Path.Combine(directoryPath, file)));
     }
 
-    private async Task DownloadGtfsFileAsync(string url, string filePath)
+    private async Task<bool> DownloadGtfsFileAsync(string url, string filePath)
     {
         _logger.LogInformation($"Downloading GTFS data from {url}");
 
-        HttpClient httpClient = _httpClientFactory.CreateClient();
-
-        HttpResponseMessage response = await httpClient.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-
-        using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+        try
         {
-            await response.Content.CopyToAsync(fileStream);
-        }
+            HttpClient httpClient = _httpClientFactory.CreateClient();
 
-        _logger.LogInformation($"Download completed successfully for {url}");
+            HttpResponseMessage response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await response.Content.CopyToAsync(fileStream);
+            }
+
+            _logger.LogInformation($"Download completed successfully for {url}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error downloading GTFS data from {url}");
+            return false;
+        }
     }
 
-    private void ExtractGtfsFile(string zipFilePath, string extractPath)
+    private void ExtractGtfsFile(string zipFilePath, string extractPath, List<string> ignoredFiles)
     {
         _logger.LogInformation($"Extracting GTFS data from {zipFilePath} to {extractPath}");
 
@@ -138,7 +149,42 @@ public class GtfsFileService : IGtfsFileService
             }
         }
 
-        ZipFile.ExtractToDirectory(zipFilePath, extractPath, overwriteFiles: true);
-        _logger.LogInformation("Extraction completed successfully.");
+        try
+        {
+            using (ZipArchive archive = ZipFile.OpenRead(zipFilePath))
+            {
+                foreach (ZipArchiveEntry entry in archive.Entries)
+                {
+                    if (ignoredFiles.Contains(entry.Name))
+                    {
+                        _logger.LogDebug($"Skipping ignored file: {entry.Name}");
+                        continue;
+                    }
+
+                    if (string.IsNullOrEmpty(entry.Name))
+                    {
+                        continue;
+                    }
+
+                    string destinationPath = Path.Combine(extractPath, entry.Name);
+
+                    try
+                    {
+                        entry.ExtractToFile(destinationPath, overwrite: true);
+                        _logger.LogDebug($"Extracted file: {entry.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Failed to extract file: {entry.Name}. Skipping.");
+                    }
+                }
+            }
+
+            _logger.LogInformation("Extraction completed (with possible skipped files).");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error extracting GTFS data from {zipFilePath}");
+        }
     }
 }
