@@ -42,6 +42,7 @@ public class AgencyService : IAgencyService
             _logger.LogWarning($"File not found: {filePath}");
             return;
         }
+
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
@@ -54,6 +55,7 @@ public class AgencyService : IAgencyService
                 _logger.LogWarning($"No data found in {filePath}");
                 return;
             }
+
             string[] headers = lines[0].Split(',');
 
             for (int i = 1; i < lines.Length; i++)
@@ -85,6 +87,7 @@ public class AgencyService : IAgencyService
 
                 entities.Add(entity);
             }
+
             if (entities.Count > 0)
             {
                 _dbContext.Agencies.AddRange(entities);

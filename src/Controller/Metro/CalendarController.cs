@@ -1,7 +1,6 @@
-using TransitGtfsApi.Models;
+using Microsoft.AspNetCore.Mvc;
 using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Models;
-using Microsoft.AspNetCore.Mvc;
 
 namespace TransitGtfsApi.Controller.Metro;
 

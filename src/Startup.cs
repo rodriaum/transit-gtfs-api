@@ -25,31 +25,31 @@ public class Startup
         string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         string envPath = Path.Combine(baseDirectory, ".env");
 
-        Console.WriteLine($"Trying to load .env file from path: {envPath}");
+        Log.Information($"Trying to load .env file from path: {Path.GetFullPath(envPath)}");
 
         if (File.Exists(envPath))
         {
-            Console.WriteLine(".env file found!");
+            Log.Information(".env file found!");
             Env.Load(envPath);
-            Console.WriteLine(".env file loaded successfully!");
+            Log.Information(".env file loaded successfully!");
         }
         else
         {
-            Console.WriteLine(".env file not found in bin directory!");
+            Log.Warning(".env file not found in bin directory!");
 
             string rootPath = Path.Combine(baseDirectory, "..", "..", "..", "..", ".env");
-            Console.WriteLine($"Trying to load from root directory: {rootPath}");
+            Log.Information($"Trying to load from root directory: {Path.GetFullPath(rootPath)}");
 
             if (File.Exists(rootPath))
             {
-                Console.WriteLine(".env file found in root directory!");
-                Env.Load(Path.GetFullPath(rootPath));
-                Console.WriteLine(".env file loaded successfully!");
+                Log.Information(".env file found in root directory!");
+                Env.Load(rootPath);
+                Log.Information(".env file loaded successfully!");
             }
             else
             {
-                Console.WriteLine("ERROR: .env file not found in any location!");
-                Console.WriteLine("Please create a .env file in the project root");
+                Log.Error("ERROR: .env file not found in any location!");
+                Log.Information("Please create a .env file in the project root");
                 Environment.Exit(1);
             }
         }
@@ -287,7 +287,7 @@ public class Startup
         }
 
         app.UseSerilogRequestLogging();
-        
+
         ConfigureSecurityHeaders(app);
 
         app.UseSwagger();
@@ -297,12 +297,12 @@ public class Startup
 
         app.UseHttpsRedirection();
         app.UseRouting();
-        
+
         app.UseCors();
-        
+
         app.UseAuthentication();
         app.UseAuthorization();
-        
+
         app.UseResponseCaching();
         app.UseResponseCompression();
 

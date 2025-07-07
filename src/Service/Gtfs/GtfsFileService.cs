@@ -58,7 +58,7 @@ public class GtfsFileService : IGtfsFileService
                     Directory.CreateDirectory(Constant.TempDownloadFolder);
                 }
 
-                if (await DownloadGtfsFileAsync(gtfsUrl, tempZipPath))
+                if (!await DownloadGtfsFileAsync(gtfsUrl, tempZipPath))
                     continue;
 
                 ExtractGtfsFile(tempZipPath, providerDirectory, ignoredFiles);
