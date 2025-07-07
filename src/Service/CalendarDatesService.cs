@@ -47,56 +47,74 @@ public class CalendarDatesService : ICalendarDatesService
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
-            var entities = new List<CalendarDate>();
-            string[] lines = await File.ReadAllLinesAsync(filePath);
 
-            if (lines.Length <= 1)
+            int batchSize = 1000;
+            List<CalendarDate> entities = new List<CalendarDate>(batchSize);
+            int totalImported = 0;
+
+            using (StreamReader reader = new StreamReader(filePath))
             {
-                _logger.LogWarning($"No data found in {filePath}");
-                return;
-            }
-
-            string[] headers = lines[0].Split(',');
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                string[] values = line.Split(',');
-                var rowData = new Dictionary<string, string?>();
-
-                for (int j = 0; j < headers.Length; j++)
+                string? headerLine = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(headerLine))
                 {
-                    if (j < values.Length)
+                    _logger.LogWarning($"No data found in {filePath}");
+                    return;
+                }
+
+                string[] headers = headerLine.Split(',');
+                string? line;
+
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    string[] values = line.Split(',');
+                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
+
+                    for (int j = 0; j < headers.Length; j++)
                     {
-                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        if (j < values.Length)
+                        {
+                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        }
+                    }
+
+                    int exceptionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("exception_type", null), -1);
+                    if (!EnumUtil.TryFromValue(exceptionId, out ExceptionType exceptionType))
+                    {
+                        _logger.LogWarning("Invalid exception type: {ExceptionId}", exceptionId);
+                        continue;
+                    }
+
+                    CalendarDate entity = new CalendarDate
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
+                        Date = rowData.GetValueOrDefault("date", "") ?? "",
+                        ExceptionType = exceptionType
+                    };
+
+                    entities.Add(entity);
+
+                    if (entities.Count >= batchSize)
+                    {
+                        _dbContext.CalendarDates.AddRange(entities);
+                        await _dbContext.SaveChangesAsync();
+                        totalImported += entities.Count;
+                        entities.Clear();
                     }
                 }
 
-                int exceptionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("exception_type", null), -1);
-                if (!EnumUtil.TryFromValue(exceptionId, out ExceptionType exceptionType))
+                if (entities.Count > 0)
                 {
-                    _logger.LogWarning("Invalid exception type: {ExceptionId}", exceptionId);
-                    continue;
+                    _dbContext.CalendarDates.AddRange(entities);
+                    await _dbContext.SaveChangesAsync();
+                    totalImported += entities.Count;
+                    entities.Clear();
                 }
-
-                var entity = new CalendarDate
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
-                    Date = rowData.GetValueOrDefault("date", "") ?? "",
-                    ExceptionType = exceptionType
-                };
-                entities.Add(entity);
             }
 
-            if (entities.Count > 0)
-            {
-                _dbContext.CalendarDates.AddRange(entities);
-                await _dbContext.SaveChangesAsync();
-                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
-            }
+            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
         }
         catch (Exception ex)
         {

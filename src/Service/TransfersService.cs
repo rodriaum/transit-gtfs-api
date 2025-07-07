@@ -46,50 +46,68 @@ public class TransfersService : ITransfersService
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
-            var entities = new List<Transfer>();
-            string[] lines = await File.ReadAllLinesAsync(filePath);
 
-            if (lines.Length <= 1)
+            int batchSize = 1000;
+            List<Transfer> entities = new List<Transfer>(batchSize);
+            int totalImported = 0;
+
+            using (StreamReader reader = new StreamReader(filePath))
             {
-                _logger.LogWarning($"No data found in {filePath}");
-                return;
-            }
-
-            string[] headers = lines[0].Split(',');
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                string[] values = line.Split(',');
-                var rowData = new Dictionary<string, string?>();
-
-                for (int j = 0; j < headers.Length; j++)
+                string? headerLine = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(headerLine))
                 {
-                    if (j < values.Length)
+                    _logger.LogWarning($"No data found in {filePath}");
+                    return;
+                }
+
+                string[] headers = headerLine.Split(',');
+                string? line;
+
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    string[] values = line.Split(',');
+                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
+
+                    for (int j = 0; j < headers.Length; j++)
                     {
-                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        if (j < values.Length)
+                        {
+                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        }
+                    }
+
+                    Transfer entity = new Transfer
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        FromStopId = rowData.GetValueOrDefault("from_stop_id", "") ?? "",
+                        ToStopId = rowData.GetValueOrDefault("to_stop_id", "") ?? "",
+                        TransferType = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_type", null)),
+                        MinTransferTime = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("min_transfer_time", null), null)
+                    };
+
+                    entities.Add(entity);
+
+                    if (entities.Count >= batchSize)
+                    {
+                        _dbContext.Transfers.AddRange(entities);
+                        await _dbContext.SaveChangesAsync();
+                        totalImported += entities.Count;
+                        entities.Clear();
                     }
                 }
 
-                var entity = new Transfer
+                if (entities.Count > 0)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    FromStopId = rowData.GetValueOrDefault("from_stop_id", "") ?? "",
-                    ToStopId = rowData.GetValueOrDefault("to_stop_id", "") ?? "",
-                    TransferType = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_type", null)),
-                    MinTransferTime = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("min_transfer_time", null), null)
-                };
-                entities.Add(entity);
+                    _dbContext.Transfers.AddRange(entities);
+                    await _dbContext.SaveChangesAsync();
+                    totalImported += entities.Count;
+                    entities.Clear();
+                }
             }
 
-            if (entities.Count > 0)
-            {
-                _dbContext.Transfers.AddRange(entities);
-                await _dbContext.SaveChangesAsync();
-                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
-            }
+            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
         }
         catch (Exception ex)
         {

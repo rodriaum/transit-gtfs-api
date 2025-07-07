@@ -37,50 +37,79 @@ public class ShapesService : IShapesService
     public async Task ImportDataAsync(string directoryPath)
     {
         string filePath = Path.Combine(directoryPath, "shapes.txt");
+
         if (!File.Exists(filePath))
         {
             _logger.LogWarning($"File not found: {filePath}");
             return;
         }
+
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
-            var entities = new List<Shape>();
-            string[] lines = await File.ReadAllLinesAsync(filePath);
-            if (lines.Length <= 1)
+
+            int batchSize = 1000;
+            List<Shape> entities = new List<Shape>(batchSize);
+            int totalImported = 0;
+
+            using (StreamReader reader = new StreamReader(filePath))
             {
-                _logger.LogWarning($"No data found in {filePath}");
-                return;
-            }
-            string[] headers = lines[0].Split(',');
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] values = line.Split(',');
-                var rowData = new Dictionary<string, string?>();
-                for (int j = 0; j < headers.Length; j++)
+                string? headerLine = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(headerLine))
                 {
-                    if (j < values.Length)
-                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                    _logger.LogWarning($"No data found in {filePath}");
+                    return;
                 }
-                var entity = new Shape
+
+                string[] headers = headerLine.Split(',');
+                string? line;
+
+                while ((line = await reader.ReadLineAsync()) != null)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    ShapeId = rowData.GetValueOrDefault("shape_id", "") ?? "",
-                    ShapePtLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture),
-                    ShapePtLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture),
-                    ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
-                    ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
-                };
-                entities.Add(entity);
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    string[] values = line.Split(',');
+                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
+
+                    for (int j = 0; j < headers.Length; j++)
+                    {
+                        if (j < values.Length)
+                        {
+                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        }
+                    }
+
+                    Shape entity = new Shape
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ShapeId = rowData.GetValueOrDefault("shape_id", "") ?? "",
+                        ShapePtLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture),
+                        ShapePtLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture),
+                        ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
+                        ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
+                    };
+
+                    entities.Add(entity);
+
+                    if (entities.Count >= batchSize)
+                    {
+                        _dbContext.Shapes.AddRange(entities);
+                        await _dbContext.SaveChangesAsync();
+                        totalImported += entities.Count;
+                        entities.Clear();
+                    }
+                }
+
+                if (entities.Count > 0)
+                {
+                    _dbContext.Shapes.AddRange(entities);
+                    await _dbContext.SaveChangesAsync();
+                    totalImported += entities.Count;
+                    entities.Clear();
+                }
             }
-            if (entities.Count > 0)
-            {
-                _dbContext.Shapes.AddRange(entities);
-                await _dbContext.SaveChangesAsync();
-                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
-            }
+
+            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
         }
         catch (Exception ex)
         {

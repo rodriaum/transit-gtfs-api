@@ -65,58 +65,88 @@ public class TripsService : ITripsService
     public async Task ImportDataAsync(string directoryPath)
     {
         string filePath = Path.Combine(directoryPath, "trips.txt");
+
         if (!File.Exists(filePath))
         {
             _logger.LogWarning($"File not found: {filePath}");
             return;
         }
+
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
-            var entities = new List<Trip>();
-            string[] lines = await File.ReadAllLinesAsync(filePath);
-            if (lines.Length <= 1)
+
+            int batchSize = 1000;
+            List<Trip> entities = new List<Trip>(batchSize);
+            int totalImported = 0;
+
+            using (StreamReader reader = new StreamReader(filePath))
             {
-                _logger.LogWarning($"No data found in {filePath}");
-                return;
-            }
-            string[] headers = lines[0].Split(',');
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] values = line.Split(',');
-                var rowData = new Dictionary<string, string?>();
-                for (int j = 0; j < headers.Length; j++)
+                string? headerLine = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(headerLine))
                 {
-                    if (j < values.Length)
-                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                    _logger.LogWarning($"No data found in {filePath}");
+                    return;
                 }
-                int wheelchairAccessibleId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wheelchair_accessible", null), -1);
-                int directionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("direction_id", null), -1);
-                int bikesAllowedId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("bikes_allowed", null), -1);
-                var entity = new Trip
+
+                string[] headers = headerLine.Split(',');
+                string? line;
+
+                while ((line = await reader.ReadLineAsync()) != null)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    RouteId = rowData.GetValueOrDefault("route_id", "") ?? "",
-                    ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
-                    TripId = rowData.GetValueOrDefault("trip_id", "") ?? "",
-                    TripHeadsign = rowData.GetValueOrDefault("trip_headsign", null),
-                    TripShortName = rowData.GetValueOrDefault("trip_short_name", null),
-                    DirectionId = directionId != -1 ? EnumUtil.FromValue<DirectionType>(directionId) : null,
-                    BlockId = rowData.GetValueOrDefault("block_id", null),
-                    ShapeId = rowData.GetValueOrDefault("shape_id", null),
-                    WheelchairAccessible = wheelchairAccessibleId != -1 ? EnumUtil.FromValue<TrinaryOption>(wheelchairAccessibleId) : null,
-                    BikesAllowed = bikesAllowedId != -1 ? EnumUtil.FromValue<TrinaryOption>(bikesAllowedId) : null,
-                };
-                entities.Add(entity);
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    string[] values = line.Split(',');
+                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
+
+                    for (int j = 0; j < headers.Length; j++)
+                    {
+                        if (j < values.Length)
+                        {
+                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        }
+                    }
+
+                    int wheelchairAccessibleId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wheelchair_accessible", null), -1);
+                    int directionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("direction_id", null), -1);
+                    int bikesAllowedId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("bikes_allowed", null), -1);
+
+                    Trip entity = new Trip
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        RouteId = rowData.GetValueOrDefault("route_id", "") ?? "",
+                        ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
+                        TripId = rowData.GetValueOrDefault("trip_id", "") ?? "",
+                        TripHeadsign = rowData.GetValueOrDefault("trip_headsign", null),
+                        TripShortName = rowData.GetValueOrDefault("trip_short_name", null),
+                        DirectionId = directionId != -1 ? EnumUtil.FromValue<DirectionType>(directionId) : null,
+                        BlockId = rowData.GetValueOrDefault("block_id", null),
+                        ShapeId = rowData.GetValueOrDefault("shape_id", null),
+                        WheelchairAccessible = wheelchairAccessibleId != -1 ? EnumUtil.FromValue<TrinaryOption>(wheelchairAccessibleId) : null,
+                        BikesAllowed = bikesAllowedId != -1 ? EnumUtil.FromValue<TrinaryOption>(bikesAllowedId) : null,
+                    };
+
+                    entities.Add(entity);
+
+                    if (entities.Count >= batchSize)
+                    {
+                        _dbContext.Trips.AddRange(entities);
+                        await _dbContext.SaveChangesAsync();
+                        totalImported += entities.Count;
+                        entities.Clear();
+                    }
+                }
+
+                if (entities.Count > 0)
+                {
+                    _dbContext.Trips.AddRange(entities);
+                    await _dbContext.SaveChangesAsync();
+                    totalImported += entities.Count;
+                    entities.Clear();
+                }
             }
-            if (entities.Count > 0)
-            {
-                _dbContext.Trips.AddRange(entities);
-                await _dbContext.SaveChangesAsync();
-                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
-            }
+
+            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
         }
         catch (Exception ex)
         {

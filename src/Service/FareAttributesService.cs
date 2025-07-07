@@ -38,54 +38,86 @@ public class FareAttributesService : IFareAttributesService
     public async Task ImportDataAsync(string directoryPath)
     {
         string filePath = Path.Combine(directoryPath, "fare_attributes.txt");
+
         if (!File.Exists(filePath))
         {
             _logger.LogWarning("File not found: {FilePath}", filePath);
             return;
         }
+
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
-            var entities = new List<FareAttribute>();
-            string[] lines = await File.ReadAllLinesAsync(filePath);
-            if (lines.Length <= 1)
+
+            int batchSize = 1000;
+            List<FareAttribute> entities = new List<FareAttribute>(batchSize);
+            int totalImported = 0;
+
+            using (StreamReader reader = new StreamReader(filePath))
             {
-                _logger.LogWarning($"No data found in {filePath}");
-                return;
-            }
-            string[] headers = lines[0].Split(',');
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] values = line.Split(',');
-                var rowData = new Dictionary<string, string?>();
-                for (int j = 0; j < headers.Length; j++)
+                string? headerLine = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(headerLine))
                 {
-                    if (j < values.Length)
-                        rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                    _logger.LogWarning($"No data found in {filePath}");
+                    return;
                 }
-                int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
-                if (!EnumUtil.TryFromValue(paymentMethodId, out PaymentMethodType paymentMethod))
-                    paymentMethod = PaymentMethodType.PayBefore;
-                var entity = new FareAttribute
+
+                string[] headers = headerLine.Split(',');
+                string? line;
+
+                while ((line = await reader.ReadLineAsync()) != null)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    FareId = rowData.GetValueOrDefault("fare_id", "") ?? "",
-                    Price = NumberUtil.ParseDecimalSafe(rowData.GetValueOrDefault("price", null), format: CultureInfo.InvariantCulture),
-                    CurrencyType = rowData.GetValueOrDefault("currency_type", "") ?? "",
-                    PaymentMethod = paymentMethod,
-                    Transfers = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfers", null)),
-                    TransferDuration = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_duration", null)),
-                };
-                entities.Add(entity);
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    string[] values = line.Split(',');
+                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
+
+                    for (int j = 0; j < headers.Length; j++)
+                    {
+                        if (j < values.Length)
+                        {
+                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
+                        }
+                    }
+
+                    int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
+                    if (!EnumUtil.TryFromValue(paymentMethodId, out PaymentMethodType paymentMethod))
+                    {
+                        paymentMethod = PaymentMethodType.PayBefore;
+                    }
+
+                    FareAttribute entity = new FareAttribute
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        FareId = rowData.GetValueOrDefault("fare_id", "") ?? "",
+                        Price = NumberUtil.ParseDecimalSafe(rowData.GetValueOrDefault("price", null), format: CultureInfo.InvariantCulture),
+                        CurrencyType = rowData.GetValueOrDefault("currency_type", "") ?? "",
+                        PaymentMethod = paymentMethod,
+                        Transfers = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfers", null)),
+                        TransferDuration = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_duration", null)),
+                    };
+
+                    entities.Add(entity);
+
+                    if (entities.Count >= batchSize)
+                    {
+                        _dbContext.FareAttributes.AddRange(entities);
+                        await _dbContext.SaveChangesAsync();
+                        totalImported += entities.Count;
+                        entities.Clear();
+                    }
+                }
+
+                if (entities.Count > 0)
+                {
+                    _dbContext.FareAttributes.AddRange(entities);
+                    await _dbContext.SaveChangesAsync();
+                    totalImported += entities.Count;
+                    entities.Clear();
+                }
             }
-            if (entities.Count > 0)
-            {
-                _dbContext.FareAttributes.AddRange(entities);
-                await _dbContext.SaveChangesAsync();
-                _logger.LogInformation($"Imported {entities.Count} records from {filePath}");
-            }
+
+            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
         }
         catch (Exception ex)
         {
