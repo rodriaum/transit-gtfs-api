@@ -7,14 +7,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using TransitGtfsApi.Filter;
+using TransitGtfsApi.Databases;
+using TransitGtfsApi.Filters;
 using TransitGtfsApi.HealthChecks;
 using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Interfaces.Gtfs;
-using TransitGtfsApi.Service;
-using TransitGtfsApi.Service.Database;
-using TransitGtfsApi.Service.Gtfs;
+using TransitGtfsApi.Services.Gtfs;
+using TransitGtfsApi.Services.Gtfs.Static;
 
 namespace TransitGtfsApi;
 
