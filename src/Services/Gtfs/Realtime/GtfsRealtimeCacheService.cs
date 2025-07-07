@@ -45,7 +45,8 @@ public class GtfsRealtimeCacheService
         // Use cache if it's still valid
         if (File.Exists(cachePath))
         {
-            var lastWrite = File.GetLastWriteTimeUtc(cachePath);
+            DateTime lastWrite = File.GetLastWriteTimeUtc(cachePath);
+
             if (DateTime.UtcNow - lastWrite < _cacheDuration)
             {
                 try
@@ -69,7 +70,7 @@ public class GtfsRealtimeCacheService
                 await responseStream.CopyToAsync(fileStream, cancellationToken);
             }
 
-            await using var finalStream = File.OpenRead(cachePath);
+            await using FileStream finalStream = File.OpenRead(cachePath);
             return FeedMessage.Parser.ParseFrom(finalStream);
         }
         catch (Exception ex)
@@ -79,7 +80,7 @@ public class GtfsRealtimeCacheService
             {
                 try
                 {
-                    await using var fallbackStream = File.OpenRead(cachePath);
+                    await using FileStream fallbackStream = File.OpenRead(cachePath);
                     return FeedMessage.Parser.ParseFrom(fallbackStream);
                 }
                 catch
@@ -97,14 +98,35 @@ public class GtfsRealtimeCacheService
     /// <summary>
     /// Fetches the alerts.pb GTFS-Realtime feed
     /// </summary>
-    public Task<FeedMessage?> GetAlertsAsync(string agencyId, CancellationToken cancellationToken = default) =>
-        GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.Alerts) ?? "", "alerts.pb", cancellationToken);
+    public async Task<List<Stop>?> GetAlertsAsync(string agencyId, CancellationToken cancellationToken = default)
+    {
+        FeedMessage? message = await GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.Alerts) ?? "", "alerts.pb", cancellationToken);
+
+        if (message == null)
+            return null;
+
+        return message.Entity
+            .Where(entity => entity.Stop != null)
+            .Select(entity => entity.Stop)
+            .ToList();
+    }
 
     /// <summary>
     /// Fetches the vehicles.pb GTFS-Realtime feed
     /// </summary>
-    public Task<FeedMessage?> GetVehiclePositionsAsync(string agencyId, CancellationToken cancellationToken = default) =>
-        GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.Vehicles) ?? "", "vehicle_positions.pb", cancellationToken);
+    public async Task<List<VehiclePosition>?> GetVehiclePositionsAsync(string agencyId, CancellationToken cancellationToken = default)
+    {
+        FeedMessage? message = await GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.Vehicles) ?? "", "vehicle_positions.pb", cancellationToken);
+
+        if (message == null)
+            return null;
+
+        return message.Entity
+            .Where(entity => entity.Vehicle != null)
+            .Select(entity => entity.Vehicle)
+            .ToList();
+    }
+
 
     public string? GetPathByAgency(string agencyId, RealtimeType type) =>
         Constant.GtfsDataList
