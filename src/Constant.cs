@@ -37,8 +37,11 @@ public class Constant
         new GtfsData("rdl_rodoviaria_lis", "https://drive.google.com/uc?export=download&id=1NqcOk8IrlV73TBonJAxpzIUTjaAjF27M")
     };
 
-    public const string ExtractPath = "../Assets/GtfsData";
-    public const string TempDownloadFolder = "../Assets/TempGtfs";
+    public const string RootPath = "../Assets";
+
+    public static string ExtractPath => Path.Combine(RootPath, "GtfsData", "Normal");
+    public static string ExtractPathRealtime => Path.Combine(RootPath, "GtfsData", "Realtime");
+    public static string TempDownloadFolder => Path.Combine(RootPath, "TempGtfs");
 
     public const string Name = "Transit GTFS";
     public const string Version = "1.0.0";
