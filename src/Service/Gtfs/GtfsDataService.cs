@@ -115,7 +115,11 @@ public class GtfsDataService : IGtfsDataService
                  */
 
                 // This is always obligatory, as it contains agency information
-                await _agencyService.ImportDataAsync(gtfsDirectoryPath, agencyKey);
+                if (!await _agencyService.ImportDataAsync(gtfsDirectoryPath, agencyKey))
+                {
+                    _logger.LogWarning($"Agency {agencyKey} could not be imported.");
+                    continue;
+                }
 
                 await ImportFileIfExists(gtfsDirectoryPath, "calendar.txt", gtfsData.IgnoredFiles,
                     async () => await _calendarService.ImportDataAsync(gtfsDirectoryPath));
