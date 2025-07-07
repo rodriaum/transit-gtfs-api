@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TransitGtfsApi.Databases;
 using TransitGtfsApi.Enums;
-using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Database;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Utils;
 

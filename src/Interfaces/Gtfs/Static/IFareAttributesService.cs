@@ -1,6 +1,6 @@
 using TransitGtfsApi.Models;
 
-namespace TransitGtfsApi.Interfaces;
+namespace TransitGtfsApi.Interfaces.Gtfs.Static;
 
 public interface IFareAttributesService
 {

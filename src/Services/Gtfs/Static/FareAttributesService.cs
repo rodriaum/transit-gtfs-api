@@ -1,11 +1,11 @@
 ﻿using System.Globalization;
 using TransitGtfsApi.Enums;
-using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Utils;
 using Microsoft.EntityFrameworkCore;
 using TransitGtfsApi.Databases;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 

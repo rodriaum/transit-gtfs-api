@@ -10,9 +10,9 @@ using Serilog;
 using TransitGtfsApi.Databases;
 using TransitGtfsApi.Filters;
 using TransitGtfsApi.HealthChecks;
-using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Interfaces.Gtfs;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Services.Gtfs;
 using TransitGtfsApi.Services.Gtfs.Static;
 

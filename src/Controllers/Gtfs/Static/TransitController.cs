@@ -1,26 +1,26 @@
-using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using TransitGtfsApi.DTOs;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 
-namespace TransitGtfsApi.Controllers.Gtfs;
+namespace TransitGtfsApi.Controllers.Gtfs.Static;
 
 [ApiController]
 [Route("api/v1/transit/gtfs")]
-public class MetroController : ControllerBase
+public class TransitController : ControllerBase
 {
     private readonly IRoutesService _routesService;
     private readonly ITripsService _tripsService;
     private readonly IStopTimesService _stopTimesService;
     private readonly IStopsService _stopsService;
-    private readonly ILogger<MetroController> _logger;
+    private readonly ILogger<TransitController> _logger;
 
-    public MetroController(
+    public TransitController(
         IRoutesService routesService,
         ITripsService tripsService,
         IStopTimesService stopTimesService,
         IStopsService stopsService,
-        ILogger<MetroController> logger)
+        ILogger<TransitController> logger)
     {
         _routesService = routesService;
         _tripsService = tripsService;

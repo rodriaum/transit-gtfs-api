@@ -1,5 +1,5 @@
-using TransitGtfsApi.Interfaces;
 using TransitGtfsApi.Interfaces.Gtfs;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
 
 namespace TransitGtfsApi.Services.Gtfs;

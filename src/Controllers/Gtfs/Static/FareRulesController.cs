@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using TransitGtfsApi.Interfaces;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
 
-namespace TransitGtfsApi.Controllers.Gtfs;
+namespace TransitGtfsApi.Controllers.Gtfs.Static;
 
 [ApiController]
 [Route("api/v1/transit/gtfs")]
