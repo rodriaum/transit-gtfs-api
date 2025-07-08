@@ -1,10 +1,12 @@
+using EFCore.BulkExtensions;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using TransitGtfsApi.Databases;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Database;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Utils;
-using Microsoft.EntityFrameworkCore;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 
@@ -36,6 +38,7 @@ public class CalendarDatesService : ICalendarDatesService
 
     public async Task ImportDataAsync(string directoryPath)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "calendar_dates.txt");
 
         if (!File.Exists(filePath))
@@ -49,12 +52,14 @@ public class CalendarDatesService : ICalendarDatesService
             _logger.LogInformation($"Importing data from {filePath}");
 
             int batchSize = 1000;
-            List<CalendarDate> entities = new List<CalendarDate>(batchSize);
             int totalImported = 0;
+
+            List<CalendarDate> entities = new List<CalendarDate>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
                 string? headerLine = await reader.ReadLineAsync();
+
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
                     _logger.LogWarning($"No data found in {filePath}");
@@ -80,6 +85,7 @@ public class CalendarDatesService : ICalendarDatesService
                     }
 
                     int exceptionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("exception_type", null), -1);
+
                     if (!EnumUtil.TryFromValue(exceptionId, out ExceptionType exceptionType))
                     {
                         _logger.LogWarning("Invalid exception type: {ExceptionId}", exceptionId);
@@ -98,8 +104,7 @@ public class CalendarDatesService : ICalendarDatesService
 
                     if (entities.Count >= batchSize)
                     {
-                        _dbContext.CalendarDates.AddRange(entities);
-                        await _dbContext.SaveChangesAsync();
+                        await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -107,14 +112,16 @@ public class CalendarDatesService : ICalendarDatesService
 
                 if (entities.Count > 0)
                 {
-                    _dbContext.CalendarDates.AddRange(entities);
-                    await _dbContext.SaveChangesAsync();
+                    await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
             }
 
-            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
         }
         catch (Exception ex)
         {

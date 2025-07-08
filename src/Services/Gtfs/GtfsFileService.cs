@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using TransitGtfsApi.Interfaces.Gtfs;
 using TransitGtfsApi.Models;
+using TransitGtfsApi.Utils;
 
 namespace TransitGtfsApi.Services.Gtfs;
 
@@ -15,9 +17,9 @@ public class GtfsFileService : IGtfsFileService
         _logger = logger;
     }
 
-    // TODO: Verify why is returning only one item
     public async Task<List<string>> EnsureGtfsFilesExistAsync()
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         List<string> gtfsDirectories = new List<string>();
 
         if (!Directory.Exists(Constant.ExtractPath))
@@ -95,19 +97,19 @@ public class GtfsFileService : IGtfsFileService
             _logger.LogWarning(ex, "Could not delete temporary directory. Some temporary files may remain.");
         }
 
+        stopwatch.Stop();
+
+        string duration = TimeFormatUtil.FormatDurationFromMilliseconds(stopwatch.ElapsedMilliseconds);
+        _logger.LogInformation($"GTFS file preparation completed in {duration}");
+
         return gtfsDirectories;
     }
 
-    private bool AreRequiredFilesPresent(string directoryPath, List<string> ignoredFiles)
-    {
-        string[] requiredFiles = { "agency.txt", "calendar.txt", "calendar_dates.txt", "fare_attributes.txt",
-                               "fare_rules.txt", "routes.txt", "shapes.txt", "stops.txt",
-                               "stop_times.txt", "transfers.txt", "trips.txt" };
-
-        return requiredFiles
+    private bool AreRequiredFilesPresent(string directoryPath, List<string> ignoredFiles) =>
+         Constant.RequiredFiles
             .Where(file => !ignoredFiles.Contains(file))
             .All(file => File.Exists(Path.Combine(directoryPath, file)));
-    }
+
 
     private async Task<bool> DownloadGtfsFileAsync(string url, string filePath)
     {

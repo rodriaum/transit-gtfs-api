@@ -1,9 +1,11 @@
-using TransitGtfsApi.Models;
+using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
-using TransitGtfsApi.Interfaces.Database;
-using TransitGtfsApi.Utils;
+using System.Diagnostics;
 using TransitGtfsApi.Databases;
+using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
+using TransitGtfsApi.Models;
+using TransitGtfsApi.Utils;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 
@@ -35,6 +37,7 @@ public class AgencyService : IAgencyService
 
     public async Task<bool> ImportDataAsync(string directoryPath, string? agencyKey = null)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "agency.txt");
 
         if (!File.Exists(filePath))
@@ -48,12 +51,14 @@ public class AgencyService : IAgencyService
             _logger.LogInformation($"Importing data from {filePath}");
 
             int batchSize = 1000;
-            List<Agency> entities = new List<Agency>(batchSize);
             int totalImported = 0;
+
+            List<Agency> entities = new List<Agency>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
                 string? headerLine = await reader.ReadLineAsync();
+
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
                     _logger.LogWarning($"No data found in {filePath}");
@@ -95,8 +100,7 @@ public class AgencyService : IAgencyService
 
                     if (entities.Count >= batchSize)
                     {
-                        _dbContext.Agencies.AddRange(entities);
-                        await _dbContext.SaveChangesAsync();
+                        await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -104,14 +108,16 @@ public class AgencyService : IAgencyService
 
                 if (entities.Count > 0)
                 {
-                    _dbContext.Agencies.AddRange(entities);
-                    await _dbContext.SaveChangesAsync();
+                    await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
             }
 
-            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
             return true;
         }
         catch (Exception ex)

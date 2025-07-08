@@ -1,10 +1,11 @@
+using EFCore.BulkExtensions;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using TransitGtfsApi.Databases;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Database;
-using TransitGtfsApi.Models;
-using TransitGtfsApi.Utils;
-using Microsoft.EntityFrameworkCore;
-using TransitGtfsApi.Databases;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
+using TransitGtfsApi.Utils;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 
@@ -36,6 +37,7 @@ public class RoutesService : IRoutesService
 
     public async Task ImportDataAsync(string directoryPath, string? agencyKey = null)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "routes.txt");
 
         if (!File.Exists(filePath))
@@ -49,12 +51,14 @@ public class RoutesService : IRoutesService
             _logger.LogInformation($"Importing data from {filePath}");
 
             int batchSize = 1000;
-            List<Models.Route> entities = new List<Models.Route>(batchSize);
             int totalImported = 0;
+
+            List<Models.Route> entities = new List<Models.Route>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
                 string? headerLine = await reader.ReadLineAsync();
+
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
                     _logger.LogWarning($"No data found in {filePath}");
@@ -80,6 +84,7 @@ public class RoutesService : IRoutesService
                     }
 
                     int routeTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("route_type", null), -1);
+
                     if (!EnumUtil.TryFromValue(routeTypeId, out RouteType routeType))
                     {
                         _logger.LogWarning("Cannot parse route_type value: {routeTypeId}", routeTypeId);
@@ -107,8 +112,7 @@ public class RoutesService : IRoutesService
 
                     if (entities.Count >= batchSize)
                     {
-                        _dbContext.Routes.AddRange(entities);
-                        await _dbContext.SaveChangesAsync();
+                        await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -116,14 +120,16 @@ public class RoutesService : IRoutesService
 
                 if (entities.Count > 0)
                 {
-                    _dbContext.Routes.AddRange(entities);
-                    await _dbContext.SaveChangesAsync();
+                    await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
             }
 
-            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
         }
         catch (Exception ex)
         {

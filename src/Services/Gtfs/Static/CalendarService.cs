@@ -1,10 +1,12 @@
-﻿using TransitGtfsApi.Enums;
+﻿using EFCore.BulkExtensions;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using TransitGtfsApi.Databases;
+using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Database;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Utils;
-using Microsoft.EntityFrameworkCore;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 
@@ -36,33 +38,44 @@ public class CalendarService : ICalendarService
 
     public async Task ImportDataAsync(string directoryPath)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "calendar.txt");
+
         if (!File.Exists(filePath))
         {
             _logger.LogWarning($"File not found: {filePath}");
             return;
         }
+
         try
         {
             _logger.LogInformation($"Importing data from {filePath}");
+
             int batchSize = 1000;
-            var entities = new List<Calendar>(batchSize);
             int totalImported = 0;
+
+            List<Calendar> entities = new List<Calendar>(batchSize);
+
             using (var reader = new StreamReader(filePath))
             {
                 string? headerLine = await reader.ReadLineAsync();
+
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
                     _logger.LogWarning($"No data found in {filePath}");
                     return;
                 }
+
                 string[] headers = headerLine.Split(',');
                 string? line;
+
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
+
                     string[] values = line.Split(',');
-                    var rowData = new Dictionary<string, string?>();
+                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
+
                     for (int j = 0; j < headers.Length; j++)
                     {
                         if (j < values.Length)
@@ -75,6 +88,7 @@ public class CalendarService : ICalendarService
                     int fridayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("friday", null), 0);
                     int saturdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("saturday", null), 0);
                     int sundayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("sunday", null), 0);
+
                     if (!EnumUtil.TryFromValue(mondayValue, out StatusType monday)) monday = StatusType.Inactive;
                     if (!EnumUtil.TryFromValue(tuesdayValue, out StatusType tuesday)) tuesday = StatusType.Inactive;
                     if (!EnumUtil.TryFromValue(wednesdayValue, out StatusType wednesday)) wednesday = StatusType.Inactive;
@@ -82,7 +96,8 @@ public class CalendarService : ICalendarService
                     if (!EnumUtil.TryFromValue(fridayValue, out StatusType friday)) friday = StatusType.Inactive;
                     if (!EnumUtil.TryFromValue(saturdayValue, out StatusType saturday)) saturday = StatusType.Inactive;
                     if (!EnumUtil.TryFromValue(sundayValue, out StatusType sunday)) sunday = StatusType.Inactive;
-                    var entity = new Calendar
+
+                    Calendar entity = new Calendar
                     {
                         Id = Guid.NewGuid().ToString(),
                         ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
@@ -96,25 +111,29 @@ public class CalendarService : ICalendarService
                         StartDate = rowData.GetValueOrDefault("start_date", "") ?? "",
                         EndDate = rowData.GetValueOrDefault("end_date", "") ?? "",
                     };
+
                     entities.Add(entity);
+
                     if (entities.Count >= batchSize)
                     {
-                        _dbContext.Calendars.AddRange(entities);
-                        await _dbContext.SaveChangesAsync();
+                        await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
                 }
-                // Salva o restante
+
                 if (entities.Count > 0)
                 {
-                    _dbContext.Calendars.AddRange(entities);
-                    await _dbContext.SaveChangesAsync();
+                    await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
             }
-            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
+
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
         }
         catch (Exception ex)
         {

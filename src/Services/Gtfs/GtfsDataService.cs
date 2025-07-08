@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using TransitGtfsApi.Utils;
 using TransitGtfsApi.Interfaces.Gtfs;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
@@ -65,6 +67,8 @@ public class GtfsDataService : IGtfsDataService
 
     public async Task LoadDataFromFilesAsync()
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+
         try
         {
             List<string> gtfsDirectories = await _gtfsFileService.EnsureGtfsFilesExistAsync();
@@ -159,6 +163,13 @@ public class GtfsDataService : IGtfsDataService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading data from GTFS files");
+        }
+        finally
+        {
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Total GTFS import duration: {duration}");
         }
     }
 

@@ -11,9 +11,8 @@ Você pode acessar os documentos da API por [aqui](https://metro-porto.gitbook.i
 ## Arquitetura Técnica
 
 - **Framework**: ASP.NET Core (.NET 8.0)
-- **Base de Dados**: MongoDB (armazenamento principal dos dados GTFS)
-- **Cache**: Redis (otimização de performance)
-- **Formato de Dados**: GTFS convertido e otimizado
+- **Base de Dados**: PostgreSQL
+- **Cache**: Redis
 
 ## Categorias da API
 
@@ -58,7 +57,7 @@ Oferece informações de estado do sistema, detalhes da versão da API e funçõ
 
 ## Processamento de Dados
 
-A API processa dados GTFS originais e converte-os para um formato otimizado armazenado no MongoDB. O Redis é utilizado para cache de consultas frequentes, garantindo tempos de resposta rápidos. O sistema inclui funcionalidades de recarregamento de dados para atualizações periódicas das informações de trânsito.
+A API processa dados GTFS originais e converte-os para um formato otimizado armazenado no PostgreSQL. O Redis é utilizado para cache de consultas frequentes, garantindo tempos de resposta rápidos. O sistema inclui funcionalidades de recarregamento de dados para atualizações periódicas das informações de trânsito.
 
 ## Padrões de Dados
 

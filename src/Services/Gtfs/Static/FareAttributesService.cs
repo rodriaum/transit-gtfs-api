@@ -1,11 +1,13 @@
-﻿using System.Globalization;
+﻿using EFCore.BulkExtensions;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using System.Globalization;
+using TransitGtfsApi.Databases;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Database;
+using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
 using TransitGtfsApi.Utils;
-using Microsoft.EntityFrameworkCore;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 
@@ -37,6 +39,7 @@ public class FareAttributesService : IFareAttributesService
 
     public async Task ImportDataAsync(string directoryPath)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "fare_attributes.txt");
 
         if (!File.Exists(filePath))
@@ -50,12 +53,14 @@ public class FareAttributesService : IFareAttributesService
             _logger.LogInformation($"Importing data from {filePath}");
 
             int batchSize = 1000;
-            List<FareAttribute> entities = new List<FareAttribute>(batchSize);
             int totalImported = 0;
+
+            List<FareAttribute> entities = new List<FareAttribute>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
                 string? headerLine = await reader.ReadLineAsync();
+
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
                     _logger.LogWarning($"No data found in {filePath}");
@@ -81,6 +86,7 @@ public class FareAttributesService : IFareAttributesService
                     }
 
                     int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
+
                     if (!EnumUtil.TryFromValue(paymentMethodId, out PaymentMethodType paymentMethod))
                     {
                         paymentMethod = PaymentMethodType.PayBefore;
@@ -101,8 +107,7 @@ public class FareAttributesService : IFareAttributesService
 
                     if (entities.Count >= batchSize)
                     {
-                        _dbContext.FareAttributes.AddRange(entities);
-                        await _dbContext.SaveChangesAsync();
+                        await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -110,14 +115,16 @@ public class FareAttributesService : IFareAttributesService
 
                 if (entities.Count > 0)
                 {
-                    _dbContext.FareAttributes.AddRange(entities);
-                    await _dbContext.SaveChangesAsync();
+                    await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
             }
 
-            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
         }
         catch (Exception ex)
         {

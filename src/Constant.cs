@@ -46,28 +46,23 @@ public class Constant
     public const string Name = "Transit GTFS";
     public const string Version = "1.0.0";
 
+    public const int BatchSizeImport = 1000;
+
     public static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
 
-    public static readonly List<string> GtfsCollections = new List<string>
-    {
-        "gtfs_agency",
-        "gtfs_calendar",
-        "gtfs_calendar_dates",
-        "gtfs_fare_attributes",
-        "gtfs_fare_rules",
-        "gtfs_routes",
-        "gtfs_shapes",
-        "gtfs_stops",
-        "gtfs_stop_times",
-        "gtfs_transfers",
-        "gtfs_trips"
-    };
-
-    public static readonly string[] RequiredEnvVars = new[]
-    {
+    public static readonly string[] RequiredEnvVars =
+    [
         "POSTGRES_CONNECTION",
         "REDIS_CONNECTION",
         "POSTGRES_DATABASE_NAME",
         "REDIS_INSTANCE_NAME"
-    };
+    ];
+
+    public static readonly string[] RequiredFiles =
+    [
+        "agency.txt", "calendar.txt", "calendar_dates.txt",
+        "fare_attributes.txt", "fare_rules.txt", "routes.txt",
+        "shapes.txt", "stops.txt", "stop_times.txt",
+        "transfers.txt", "trips.txt"
+    ];
 }

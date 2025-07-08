@@ -1,4 +1,6 @@
+using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using TransitGtfsApi.Databases;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Database;
@@ -73,6 +75,7 @@ public class TripsService : ITripsService
 
     public async Task ImportDataAsync(string directoryPath)
     {
+        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "trips.txt");
 
         if (!File.Exists(filePath))
@@ -85,13 +88,15 @@ public class TripsService : ITripsService
         {
             _logger.LogInformation($"Importing data from {filePath}");
 
-            int batchSize = 1000;
-            List<Trip> entities = new List<Trip>(batchSize);
+            int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+
+            List<Trip> entities = new List<Trip>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
                 string? headerLine = await reader.ReadLineAsync();
+
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
                     _logger.LogWarning($"No data found in {filePath}");
@@ -139,8 +144,7 @@ public class TripsService : ITripsService
 
                     if (entities.Count >= batchSize)
                     {
-                        _dbContext.Trips.AddRange(entities);
-                        await _dbContext.SaveChangesAsync();
+                        await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -148,14 +152,16 @@ public class TripsService : ITripsService
 
                 if (entities.Count > 0)
                 {
-                    _dbContext.Trips.AddRange(entities);
-                    await _dbContext.SaveChangesAsync();
+                    await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
             }
 
-            _logger.LogInformation($"Imported {totalImported} records from {filePath}");
+            stopwatch.Stop();
+
+            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
+            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
         }
         catch (Exception ex)
         {
