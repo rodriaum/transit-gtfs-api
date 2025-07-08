@@ -13,11 +13,11 @@ namespace TransitGtfsApi.Services.Gtfs.Static;
 
 public class StopTimesService : IStopTimesService
 {
-    private readonly TransitDbContext _dbContext;
+    private readonly GTFSContext _dbContext;
     private readonly ILogger<StopTimesService> _logger;
     private readonly IRedisService _redis;
 
-    public StopTimesService(TransitDbContext dbContext, ILogger<StopTimesService> logger, IRedisService redis)
+    public StopTimesService(GTFSContext dbContext, ILogger<StopTimesService> logger, IRedisService redis)
     {
         _dbContext = dbContext;
         _logger = logger;

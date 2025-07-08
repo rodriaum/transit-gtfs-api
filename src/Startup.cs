@@ -212,7 +212,7 @@ public class Startup
 
     private void ConfigureDatabaseServices(IServiceCollection services)
     {
-        services.AddDbContext<TransitDbContext>(options =>
+        services.AddDbContext<GTFSContext>(options =>
         {
             string? connection = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
             string? dbName = Environment.GetEnvironmentVariable("POSTGRES_DATABASE_NAME");
@@ -311,7 +311,7 @@ public class Startup
 
         using (IServiceScope scope = app.ApplicationServices.CreateScope())
         {
-            TransitDbContext db = scope.ServiceProvider.GetRequiredService<TransitDbContext>();
+            GTFSContext db = scope.ServiceProvider.GetRequiredService<GTFSContext>();
             db.Database.Migrate();
         }
 

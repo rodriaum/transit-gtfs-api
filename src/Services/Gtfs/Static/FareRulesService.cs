@@ -11,11 +11,11 @@ namespace TransitGtfsApi.Services.Gtfs.Static;
 
 public class FareRulesService : IFareRulesService
 {
-    private readonly TransitDbContext _dbContext;
+    private readonly GTFSContext _dbContext;
     private readonly ILogger<FareRulesService> _logger;
     private readonly IRedisService _redis;
 
-    public FareRulesService(TransitDbContext dbContext, ILogger<FareRulesService> logger, IRedisService redis)
+    public FareRulesService(GTFSContext dbContext, ILogger<FareRulesService> logger, IRedisService redis)
     {
         _dbContext = dbContext;
         _logger = logger;

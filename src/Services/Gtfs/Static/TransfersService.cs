@@ -11,11 +11,11 @@ namespace TransitGtfsApi.Services.Gtfs.Static;
 
 public class TransfersService : ITransfersService
 {
-    private readonly TransitDbContext _dbContext;
+    private readonly GTFSContext _dbContext;
     private readonly ILogger<TransfersService> _logger;
     private readonly IRedisService _redis;
 
-    public TransfersService(TransitDbContext dbContext, ILogger<TransfersService> logger, IRedisService redis)
+    public TransfersService(GTFSContext dbContext, ILogger<TransfersService> logger, IRedisService redis)
     {
         _dbContext = dbContext;
         _logger = logger;

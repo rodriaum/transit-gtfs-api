@@ -1,7 +1,6 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using System.Globalization;
 using TransitGtfsApi.Databases;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
@@ -10,36 +9,28 @@ using TransitGtfsApi.Utils;
 
 namespace TransitGtfsApi.Services.Gtfs.Static;
 
-public class ShapesService : IShapesService
+public class NetworkService : INetworkService
 {
     private readonly GTFSContext _dbContext;
-    private readonly ILogger<ShapesService> _logger;
+    private readonly ILogger<NetworkService> _logger;
     private readonly IRedisService _redis;
 
-    public ShapesService(GTFSContext dbContext, ILogger<ShapesService> logger, IRedisService redis)
+    public NetworkService(GTFSContext dbContext, ILogger<NetworkService> logger, IRedisService redis)
     {
         _dbContext = dbContext;
         _logger = logger;
         _redis = redis;
     }
 
-    public async Task<List<Shape>> GetAllAsync()
+    public async Task<List<Network>> GetAllAsync()
     {
-        return await _dbContext.Shapes.ToListAsync();
-    }
-
-    public async Task<List<Shape>?> GetByShapeIdAsync(string shapeId)
-    {
-        return await _redis.GetOrSetAsync(
-            $"shapes-{shapeId}",
-            async () => await _dbContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync()
-        );
+        return await _dbContext.Set<Network>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
-        string filePath = Path.Combine(directoryPath, "shapes.txt");
+        string filePath = Path.Combine(directoryPath, "networks.txt");
 
         if (!File.Exists(filePath))
         {
@@ -56,10 +47,10 @@ public class ShapesService : IShapesService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
+                await _dbContext.Set<Network>().Select(n => n.NetworkId.ToLower()).ToListAsync()
             );
 
-            List<Shape> entities = new List<Shape>(batchSize);
+            List<Network> entities = new List<Network>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
@@ -89,25 +80,24 @@ public class ShapesService : IShapesService
                         }
                     }
 
-                    string shapeId = rowData.GetValueOrDefault("shape_id", "") ?? "";
-                    if (existingIds.Contains(shapeId.ToLower()))
+                    string networkId = rowData.GetValueOrDefault("network_id", "") ?? "";
+                    string uniqueKey = networkId.ToLower();
+                    if (existingIds.Contains(uniqueKey))
                     {
                         totalIgnored++;
                         continue;
                     }
 
-                    Shape entity = new Shape
+                    Network entity = new Network
                     {
                         Id = Guid.NewGuid().ToString(),
-                        ShapeId = shapeId,
-                        ShapePtLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture),
-                        ShapePtLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture),
-                        ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
-                        ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
+                        NetworkId = networkId,
+                        Name = rowData.GetValueOrDefault("name", "") ?? "",
+                        Description = rowData.GetValueOrDefault("description", null)
                     };
 
                     entities.Add(entity);
-                    existingIds.Add(shapeId.ToLower());
+                    existingIds.Add(uniqueKey);
 
                     if (entities.Count >= batchSize)
                     {

@@ -1,7 +1,7 @@
 namespace TransitGtfsApi.Services.Gtfs.Realtime;
 
 using System;
-using System.IO;
+using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,86 +13,50 @@ using TransitRealtime;
 public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 {
     private readonly HttpClient _httpClient;
-    private readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(30);
-    private readonly string _cacheFolder;
-
     private readonly ILogger<GtfsRealtimeCacheService> _logger;
+
+    private static readonly ConcurrentDictionary<string, (FeedMessage feed, DateTime cachedAt)> _cache = new();
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
 
     public GtfsRealtimeCacheService(ILogger<GtfsRealtimeCacheService> logger)
     {
         _httpClient = new HttpClient();
-        _cacheFolder = Constant.ExtractPathRealtime;
         _logger = logger;
-
-        if (!Directory.Exists(_cacheFolder))
-            Directory.CreateDirectory(_cacheFolder);
     }
 
-    /// <summary>
-    /// Fetches and parses a GTFS Realtime feed with caching.
-    /// If cache is valid (less than 30s), reads from local file.
-    /// Otherwise, downloads from URL and updates the cache.
-    /// </summary>
-    public async Task<FeedMessage?> GetFeedAsync(string url, string cacheFileName, CancellationToken cancellationToken = default)
+    public async Task<FeedMessage?> GetFeedAsync(string url, string cacheKey, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(url))
-        {
-            _logger.LogWarning("URL is null or empty. Returning null.");
-            return null;
-        }
+        if (string.IsNullOrEmpty(url)) return null;
 
-        string cachePath = Path.Combine(_cacheFolder, cacheFileName);
+        if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
+            return cached.feed;
 
-        // Use cache if it's still valid
-        if (File.Exists(cachePath))
-        {
-            DateTime lastWrite = File.GetLastWriteTimeUtc(cachePath);
-
-            if (DateTime.UtcNow - lastWrite < _cacheDuration)
-            {
-                try
-                {
-                    await using var cacheStream = File.OpenRead(cachePath);
-                    return FeedMessage.Parser.ParseFrom(cacheStream);
-                }
-                catch
-                {
-                    // If cache is corrupted, continue and try downloading
-                }
-            }
-        }
+        SemaphoreSlim lockObj = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+        await lockObj.WaitAsync(cancellationToken);
 
         try
         {
-            await using Stream responseStream = await _httpClient.GetStreamAsync(url, cancellationToken);
+            if (_cache.TryGetValue(cacheKey, out cached) && DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
+                return cached.feed;
 
-            await using (FileStream fileStream = File.Create(cachePath))
-            {
-                await responseStream.CopyToAsync(fileStream, cancellationToken);
-            }
+            HttpResponseMessage response = await _httpClient.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            await using FileStream finalStream = File.OpenRead(cachePath);
-            return FeedMessage.Parser.ParseFrom(finalStream);
+            byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            FeedMessage feed = FeedMessage.Parser.ParseFrom(data);
+
+            _cache[cacheKey] = (feed, DateTime.UtcNow);
+            return feed;
         }
         catch (Exception ex)
         {
-            // If download fails, attempt to read existing cache
-            if (File.Exists(cachePath))
-            {
-                try
-                {
-                    await using FileStream fallbackStream = File.OpenRead(cachePath);
-                    return FeedMessage.Parser.ParseFrom(fallbackStream);
-                }
-                catch
-                {
-                    _logger.LogWarning($"Failed to parse both downloaded and cached feed\n -> {ex.Message}");
-                    return null;
-                }
-            }
+            _logger.LogError($"Failed to fetch {url}: {ex.Message}");
 
-            _logger.LogWarning($"Failed to fetch feed and no valid cache available.\n -> {ex.Message}");
-            return null;
+            return _cache.TryGetValue(cacheKey, out cached) ? cached.feed : null;
+        }
+        finally
+        {
+            lockObj.Release();
         }
     }
 
@@ -279,7 +243,6 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 
         return result;
     }
-
 
     public string? GetPathByAgency(string agencyId, RealtimeType type) =>
         Constant.GtfsDataList

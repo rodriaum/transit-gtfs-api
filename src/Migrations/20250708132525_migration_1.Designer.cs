@@ -10,7 +10,7 @@ using TransitGtfsApi.Databases;
 
 namespace TransitGtfsApi.Migrations
 {
-    [DbContext(typeof(TransitDbContext))]
+    [DbContext(typeof(GTFSContext))]
     [Migration("20250708132525_migration_1")]
     partial class migration_1
     {

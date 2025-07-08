@@ -12,11 +12,11 @@ namespace TransitGtfsApi.Services.Gtfs.Static;
 
 public class CalendarDatesService : ICalendarDatesService
 {
-    private readonly TransitDbContext _dbContext;
+    private readonly GTFSContext _dbContext;
     private readonly ILogger<CalendarDatesService> _logger;
     private readonly IRedisService _redis;
 
-    public CalendarDatesService(TransitDbContext dbContext, ILogger<CalendarDatesService> logger, IRedisService redis)
+    public CalendarDatesService(GTFSContext dbContext, ILogger<CalendarDatesService> logger, IRedisService redis)
     {
         _dbContext = dbContext;
         _logger = logger;

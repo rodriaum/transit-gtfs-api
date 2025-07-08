@@ -3,9 +3,9 @@ using TransitGtfsApi.Models;
 
 namespace TransitGtfsApi.Databases;
 
-public class TransitDbContext : DbContext
+public class GTFSContext : DbContext
 {
-    public TransitDbContext(DbContextOptions<TransitDbContext> options) : base(options) { }
+    public GTFSContext(DbContextOptions<GTFSContext> options) : base(options) { }
 
     public DbSet<Agency> Agencies { get; set; }
     public DbSet<Calendar> Calendars { get; set; }
@@ -18,6 +18,14 @@ public class TransitDbContext : DbContext
     public DbSet<StopTime> StopTimes { get; set; }
     public DbSet<Transfer> Transfers { get; set; }
     public DbSet<Trip> Trips { get; set; }
+    public DbSet<FeedInfo> FeedInfos { get; set; }
+    public DbSet<Translation> Translations { get; set; }
+    public DbSet<Attribution> Attributions { get; set; }
+    public DbSet<StopArea> StopAreas { get; set; }
+    public DbSet<FareMedia> FareMedias { get; set; }
+    public DbSet<FareLegRule> FareLegRules { get; set; }
+    public DbSet<FareProduct> FareProducts { get; set; }
+    public DbSet<Network> Networks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +41,14 @@ public class TransitDbContext : DbContext
         modelBuilder.Entity<StopTime>().ToTable("gtfs_stop_times");
         modelBuilder.Entity<Transfer>().ToTable("gtfs_transfers");
         modelBuilder.Entity<Trip>().ToTable("gtfs_trips");
+        modelBuilder.Entity<FeedInfo>().ToTable("gtfs_feed_info");
+        modelBuilder.Entity<Translation>().ToTable("gtfs_translations");
+        modelBuilder.Entity<Attribution>().ToTable("gtfs_attributions");
+        modelBuilder.Entity<StopArea>().ToTable("gtfs_stop_areas");
+        modelBuilder.Entity<FareMedia>().ToTable("gtfs_fare_media");
+        modelBuilder.Entity<FareLegRule>().ToTable("gtfs_fare_leg_rules");
+        modelBuilder.Entity<FareProduct>().ToTable("gtfs_fare_products");
+        modelBuilder.Entity<Network>().ToTable("gtfs_networks");
 
         // Keys
         modelBuilder.Entity<Agency>().HasKey(e => e.Id);
@@ -46,6 +62,14 @@ public class TransitDbContext : DbContext
         modelBuilder.Entity<StopTime>().HasKey(e => e.Id);
         modelBuilder.Entity<Transfer>().HasKey(e => e.Id);
         modelBuilder.Entity<Trip>().HasKey(e => e.Id);
+        modelBuilder.Entity<FeedInfo>().HasKey(e => e.Id);
+        modelBuilder.Entity<Translation>().HasKey(e => e.Id);
+        modelBuilder.Entity<Attribution>().HasKey(e => e.Id);
+        modelBuilder.Entity<StopArea>().HasKey(e => e.Id);
+        modelBuilder.Entity<FareMedia>().HasKey(e => e.Id);
+        modelBuilder.Entity<FareLegRule>().HasKey(e => e.Id);
+        modelBuilder.Entity<FareProduct>().HasKey(e => e.Id);
+        modelBuilder.Entity<Network>().HasKey(e => e.Id);
 
         // Indexes
         modelBuilder.Entity<Agency>().HasIndex(e => e.AgencyId);
@@ -63,5 +87,13 @@ public class TransitDbContext : DbContext
         modelBuilder.Entity<Trip>().HasIndex(e => e.TripId);
         modelBuilder.Entity<Trip>().HasIndex(e => e.RouteId);
         modelBuilder.Entity<Trip>().HasIndex(e => e.ServiceId);
+        modelBuilder.Entity<FeedInfo>().HasIndex(e => e.FeedPublisherName);
+        modelBuilder.Entity<Translation>().HasIndex(e => e.TableName);
+        modelBuilder.Entity<Attribution>().HasIndex(e => e.OrganizationName);
+        modelBuilder.Entity<StopArea>().HasIndex(e => e.StopAreaId);
+        modelBuilder.Entity<FareMedia>().HasIndex(e => e.FareMediaId);
+        modelBuilder.Entity<FareLegRule>().HasIndex(e => e.FareLegRuleId);
+        modelBuilder.Entity<FareProduct>().HasIndex(e => e.FareProductId);
+        modelBuilder.Entity<Network>().HasIndex(e => e.NetworkId);
     }
 }

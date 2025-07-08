@@ -9,7 +9,7 @@ using TransitGtfsApi.Databases;
 
 namespace TransitGtfsApi.Migrations
 {
-    [DbContext(typeof(TransitDbContext))]
+    [DbContext(typeof(GTFSContext))]
     partial class TransitDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
@@ -71,6 +71,62 @@ namespace TransitGtfsApi.Migrations
                         .HasDatabaseName("ix_gtfs_agencies_agency_id");
 
                     b.ToTable("gtfs_agencies", (string)null);
+                });
+
+            modelBuilder.Entity("TransitGtfsApi.Models.Attribution", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AgencyId")
+                        .HasColumnType("text")
+                        .HasColumnName("agency_id");
+
+                    b.Property<string>("AttributionEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("attribution_email");
+
+                    b.Property<string>("AttributionPhone")
+                        .HasColumnType("text")
+                        .HasColumnName("attribution_phone");
+
+                    b.Property<string>("AttributionUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("attribution_url");
+
+                    b.Property<bool>("IsAuthority")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_authority");
+
+                    b.Property<bool>("IsOperator")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_operator");
+
+                    b.Property<bool>("IsProducer")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_producer");
+
+                    b.Property<string>("OrganizationName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("organization_name");
+
+                    b.Property<string>("RouteId")
+                        .HasColumnType("text")
+                        .HasColumnName("route_id");
+
+                    b.Property<string>("TripId")
+                        .HasColumnType("text")
+                        .HasColumnName("trip_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_attributions");
+
+                    b.HasIndex("OrganizationName")
+                        .HasDatabaseName("ix_gtfs_attributions_organization_name");
+
+                    b.ToTable("gtfs_attributions", (string)null);
                 });
 
             modelBuilder.Entity("TransitGtfsApi.Models.Calendar", b =>
@@ -201,6 +257,112 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_fare_attributes", (string)null);
                 });
 
+            modelBuilder.Entity("TransitGtfsApi.Models.FareLegRule", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("FareLegRuleId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fare_leg_rule_id");
+
+                    b.Property<string>("FareProductId")
+                        .HasColumnType("text")
+                        .HasColumnName("fare_product_id");
+
+                    b.Property<string>("LegGroupId")
+                        .HasColumnType("text")
+                        .HasColumnName("leg_group_id");
+
+                    b.Property<string>("NetworkId")
+                        .HasColumnType("text")
+                        .HasColumnName("network_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_fare_leg_rules");
+
+                    b.HasIndex("FareLegRuleId")
+                        .HasDatabaseName("ix_gtfs_fare_leg_rules_fare_leg_rule_id");
+
+                    b.ToTable("gtfs_fare_leg_rules", (string)null);
+                });
+
+            modelBuilder.Entity("TransitGtfsApi.Models.FareMedia", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("FareMediaId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fare_media_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Type")
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_fare_media");
+
+                    b.HasIndex("FareMediaId")
+                        .HasDatabaseName("ix_gtfs_fare_media_fare_media_id");
+
+                    b.ToTable("gtfs_fare_media", (string)null);
+                });
+
+            modelBuilder.Entity("TransitGtfsApi.Models.FareProduct", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("text")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("FareProductId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fare_product_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Type")
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_fare_products");
+
+                    b.HasIndex("FareProductId")
+                        .HasDatabaseName("ix_gtfs_fare_products_fare_product_id");
+
+                    b.ToTable("gtfs_fare_products", (string)null);
+                });
+
             modelBuilder.Entity("TransitGtfsApi.Models.FareRule", b =>
                 {
                     b.Property<string>("Id")
@@ -235,6 +397,85 @@ namespace TransitGtfsApi.Migrations
                         .HasDatabaseName("ix_gtfs_fare_rules_fare_id");
 
                     b.ToTable("gtfs_fare_rules", (string)null);
+                });
+
+            modelBuilder.Entity("TransitGtfsApi.Models.FeedInfo", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("FeedContactEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("feed_contact_email");
+
+                    b.Property<string>("FeedContactUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("feed_contact_url");
+
+                    b.Property<string>("FeedEndDate")
+                        .HasColumnType("text")
+                        .HasColumnName("feed_end_date");
+
+                    b.Property<string>("FeedLang")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("feed_lang");
+
+                    b.Property<string>("FeedPublisherName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("feed_publisher_name");
+
+                    b.Property<string>("FeedPublisherUrl")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("feed_publisher_url");
+
+                    b.Property<string>("FeedStartDate")
+                        .HasColumnType("text")
+                        .HasColumnName("feed_start_date");
+
+                    b.Property<string>("FeedVersion")
+                        .HasColumnType("text")
+                        .HasColumnName("feed_version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_feed_info");
+
+                    b.HasIndex("FeedPublisherName")
+                        .HasDatabaseName("ix_gtfs_feed_info_feed_publisher_name");
+
+                    b.ToTable("gtfs_feed_info", (string)null);
+                });
+
+            modelBuilder.Entity("TransitGtfsApi.Models.Network", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NetworkId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("network_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_networks");
+
+                    b.HasIndex("NetworkId")
+                        .HasDatabaseName("ix_gtfs_networks_network_id");
+
+                    b.ToTable("gtfs_networks", (string)null);
                 });
 
             modelBuilder.Entity("TransitGtfsApi.Models.Route", b =>
@@ -410,6 +651,35 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_stops", (string)null);
                 });
 
+            modelBuilder.Entity("TransitGtfsApi.Models.StopArea", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("StopAreaId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("stop_area_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_stop_areas");
+
+                    b.HasIndex("StopAreaId")
+                        .HasDatabaseName("ix_gtfs_stop_areas_stop_area_id");
+
+                    b.ToTable("gtfs_stop_areas", (string)null);
+                });
+
             modelBuilder.Entity("TransitGtfsApi.Models.StopTime", b =>
                 {
                     b.Property<string>("Id")
@@ -506,6 +776,49 @@ namespace TransitGtfsApi.Migrations
                         .HasDatabaseName("ix_gtfs_transfers_to_stop_id");
 
                     b.ToTable("gtfs_transfers", (string)null);
+                });
+
+            modelBuilder.Entity("TransitGtfsApi.Models.Translation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("field_name");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("language");
+
+                    b.Property<string>("RecordId")
+                        .HasColumnType("text")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RecordSubId")
+                        .HasColumnType("text")
+                        .HasColumnName("record_sub_id");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("table_name");
+
+                    b.Property<string>("TranslationText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("translation_text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gtfs_translations");
+
+                    b.HasIndex("TableName")
+                        .HasDatabaseName("ix_gtfs_translations_table_name");
+
+                    b.ToTable("gtfs_translations", (string)null);
                 });
 
             modelBuilder.Entity("TransitGtfsApi.Models.Trip", b =>

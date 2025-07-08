@@ -20,6 +20,14 @@ public class GtfsDataService : IGtfsDataService
     private readonly IStopTimesService _stopTimesService;
     private readonly ITransfersService _transfersService;
     private readonly ITripsService _tripsService;
+    private readonly IFeedInfoService _feedInfoService;
+    private readonly ITranslationService _translationService;
+    private readonly IAttributionService _attributionService;
+    private readonly IStopAreaService _stopAreaService;
+    private readonly IFareMediaService _fareMediaService;
+    private readonly IFareLegRuleService _fareLegRuleService;
+    private readonly IFareProductService _fareProductService;
+    private readonly INetworkService _networkService;
     private readonly ILogger<GtfsDataService> _logger;
 
     public GtfsDataService(
@@ -35,6 +43,14 @@ public class GtfsDataService : IGtfsDataService
         IStopTimesService stopTimesService,
         ITransfersService transfersService,
         ITripsService tripsService,
+        IFeedInfoService feedInfoService,
+        ITranslationService translationService,
+        IAttributionService attributionService,
+        IStopAreaService stopAreaService,
+        IFareMediaService fareMediaService,
+        IFareLegRuleService fareLegRuleService,
+        IFareProductService fareProductService,
+        INetworkService networkService,
         ILogger<GtfsDataService> logger)
     {
         _gtfsFileService = gtfsFileService;
@@ -49,6 +65,14 @@ public class GtfsDataService : IGtfsDataService
         _stopTimesService = stopTimesService;
         _transfersService = transfersService;
         _tripsService = tripsService;
+        _feedInfoService = feedInfoService;
+        _translationService = translationService;
+        _attributionService = attributionService;
+        _stopAreaService = stopAreaService;
+        _fareMediaService = fareMediaService;
+        _fareLegRuleService = fareLegRuleService;
+        _fareProductService = fareProductService;
+        _networkService = networkService;
         _logger = logger;
     }
 
@@ -112,12 +136,6 @@ public class GtfsDataService : IGtfsDataService
 
                 _logger.LogInformation($"Importing GTFS data from {gtfsDirectoryPath} (Agency: {agencyId})");
 
-                /**
-                 * Using agencyId in agency and routes services is because
-                 * some agencies forget or do not put the agencyId, and this
-                 * ends up causing internal problems when searching for id.
-                 */
-
                 // This is always obligatory, as it contains agency information
                 if (!await _agencyService.ImportDataAsync(gtfsDirectoryPath, agencyId))
                 {
@@ -154,6 +172,30 @@ public class GtfsDataService : IGtfsDataService
 
                 await ImportFileIfExists(gtfsDirectoryPath, "trips.txt", gtfsData.IgnoredFiles,
                     async () => await _tripsService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "feed_info.txt", gtfsData.IgnoredFiles,
+                    async () => await _feedInfoService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "translations.txt", gtfsData.IgnoredFiles,
+                    async () => await _translationService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "attributions.txt", gtfsData.IgnoredFiles,
+                    async () => await _attributionService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "stop_areas.txt", gtfsData.IgnoredFiles,
+                    async () => await _stopAreaService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "fare_media.txt", gtfsData.IgnoredFiles,
+                    async () => await _fareMediaService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "fare_leg_rules.txt", gtfsData.IgnoredFiles,
+                    async () => await _fareLegRuleService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "fare_products.txt", gtfsData.IgnoredFiles,
+                    async () => await _fareProductService.ImportDataAsync(gtfsDirectoryPath));
+
+                await ImportFileIfExists(gtfsDirectoryPath, "networks.txt", gtfsData.IgnoredFiles,
+                    async () => await _networkService.ImportDataAsync(gtfsDirectoryPath));
 
                 _logger.LogInformation($"Data import from {gtfsDirectoryPath} completed successfully");
             }
