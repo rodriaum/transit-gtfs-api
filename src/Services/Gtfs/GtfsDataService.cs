@@ -217,13 +217,14 @@ public class GtfsDataService : IGtfsDataService
 
     private async Task ImportFileIfExists(string directoryPath, string fileName, List<string> ignoredFiles, Func<Task> importAction)
     {
-        if (!ignoredFiles.Exists(it => it.StartsWith(fileName)))
+        if (ignoredFiles.Exists(it => it.StartsWith(fileName)))
         {
             _logger.LogDebug($"Skipping import of ignored file: {fileName}");
             return;
         }
 
         string filePath = Path.Combine(directoryPath, fileName);
+
         if (File.Exists(filePath))
         {
             _logger.LogDebug($"Importing {fileName}");

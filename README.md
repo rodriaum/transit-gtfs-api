@@ -10,11 +10,11 @@ Você pode acessar os documentos da API por [aqui](https://metro-porto.gitbook.i
 
 ## Arquitetura Técnica
 
-- **Framework**: ASP.NET Core (.NET 8.0)
-- **Base de Dados**: PostgreSQL
+- **Framework**: ASP.NET Core (.NET 9.0)
+- **Base de Dados**: PostgreSQL + PostGIS
 - **Cache**: Redis
 
-## Categorias da API
+## Categorias
 
 ### 🏢 Informações da Agência
 Fornece informações sobre as agências de transporte que operam, incluindo detalhes da agência, informações de contacto e dados operacionais.
@@ -35,7 +35,7 @@ Gere dados de viagens individuais que representam percursos específicos ao long
 Trata informações detalhadas de horários sobre quando os itinerários chegam e partem de cada paragem. Suporta paginação para grandes conjuntos de dados e fornece dados de tempo específicos da viagem.
 
 ### 🗺️ Formas Geográficas
-Contém dados de coordenadas geográficas que definem os caminhos físicos das rotas nos mapas. Essencial para exibir linhas de rota.
+Contém dados de coordenadas geográficas que definem os caminhos físicos das rotas nos mapas. Essencial para exibir linhas de rota. Agora com suporte a queries espaciais via PostGIS.
 
 ### 🔄 Transferências e Ligações
 Gere pontos de transferência entre diferentes linhas e rotas, ajudando os utilizadores a planear viagens multi-linha e compreender possibilidades de ligação em toda a rede.
@@ -43,17 +43,21 @@ Gere pontos de transferência entre diferentes linhas e rotas, ajudando os utili
 ### 💰 Informações Tarifárias
 Fornece informações de preços e regras tarifárias para viagens, incluindo diferentes tipos de tarifas, métodos de pagamento, políticas de transferência e estruturas de preços baseadas em zonas.
 
-### ℹ️ Informações do Sistema e Gestão
-Oferece informações de estado do sistema, detalhes da versão da API e funções administrativas como recarregamento de dados. Essencial para monitorizar a saúde da API e gerir atualizações de dados.
+### 🆔 Identificadores e Traduções
+Inclui serviços para traduções de campos (Translation), informações de feeds (FeedInfo), atribuições (Attribution) e áreas de paragem (StopArea).
 
-## Funcionalidades Principais
+### 🏷️ Produtos, Mídias e Regras de Tarifa
+Gerencia produtos tarifários (FareProduct), mídias de pagamento (FareMedia), regras de tarifa por trecho (FareLegRule) e redes (Network).
+
+## Funcionalidades
 
 - **Partidas**: Obtenha informações de partidas para qualquer paragem
 - **Planeamento de Rotas**: Aceda a informações completas de rotas e viagens para planeamento de percursos
-- **Dados Geográficos**: Recupere dados de coordenadas para mapeamento e serviços de localização
+- **Dados Geográficos**: Recupere dados de coordenadas para mapeamento e serviços de localização, agora com suporte a queries espaciais
 - **Informações de Horários**: Aceda a horários detalhados e calendários de serviços
 - **Cálculo de Tarifas**: Obtenha informações de preços e regras tarifárias
 - **Informações de Transferência**: Encontre pontos de ligação entre diferentes linhas
+- **PostGIS**: As tabelas `gtfs_stops` e `gtfs_shapes` possuem colunas geográficas (`location` e `geom`) usando tipos `geography (point)` e `geometry (point)` do PostGIS, permitindo consultas espaciais e integração avançada com mapas.
 
 ## Processamento de Dados
 

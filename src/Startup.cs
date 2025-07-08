@@ -253,8 +253,16 @@ public class Startup
         services.AddScoped<ITransfersService, TransfersService>();
         services.AddScoped<ITripsService, TripsService>();
         services.AddScoped<IGtfsDataService, GtfsDataService>();
+        services.AddScoped<IFeedInfoService, FeedInfoService>();
         services.AddSingleton<IGtfsFileService, GtfsFileService>();
         services.AddSingleton<IGtfsRealtimeCacheService, GtfsRealtimeCacheService>();
+        services.AddScoped<ITranslationService, TranslationService>();
+        services.AddScoped<IAttributionService, AttributionService>();
+        services.AddScoped<IStopAreaService, StopAreaService>();
+        services.AddScoped<IFareMediaService, FareMediaService>();
+        services.AddScoped<IFareLegRuleService, FareLegRuleService>();
+        services.AddScoped<IFareProductService, FareProductService>();
+        services.AddScoped<INetworkService, NetworkService>();
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)
