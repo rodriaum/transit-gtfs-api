@@ -13,11 +13,4 @@ public class FareMediaController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<List<FareMedia>>> GetAll() => await _service.GetAllAsync();
-
-    [HttpPost("import")]
-    public async Task<IActionResult> Import([FromQuery] string directoryPath)
-    {
-        await _service.ImportDataAsync(directoryPath);
-        return Ok();
-    }
 }

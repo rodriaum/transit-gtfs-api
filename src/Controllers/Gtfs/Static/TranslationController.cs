@@ -13,11 +13,4 @@ public class TranslationController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<List<Translation>>> GetAll() => await _service.GetAllAsync();
-
-    [HttpPost("import")]
-    public async Task<IActionResult> Import([FromQuery] string directoryPath)
-    {
-        await _service.ImportDataAsync(directoryPath);
-        return Ok();
-    }
 }

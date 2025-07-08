@@ -13,11 +13,4 @@ public class NetworkController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<List<Network>>> GetAll() => await _service.GetAllAsync();
-
-    [HttpPost("import")]
-    public async Task<IActionResult> Import([FromQuery] string directoryPath)
-    {
-        await _service.ImportDataAsync(directoryPath);
-        return Ok();
-    }
 }
