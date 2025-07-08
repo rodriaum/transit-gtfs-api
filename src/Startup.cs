@@ -219,8 +219,9 @@ public class Startup
 
             string fullConnection = $"{connection};Database={dbName}";
 
-            options.UseNpgsql(fullConnection);
-            options.UseSnakeCaseNamingConvention();
+            options
+                .UseNpgsql(fullConnection, o => o.UseNetTopologySuite())
+                .UseSnakeCaseNamingConvention();
         });
     }
 

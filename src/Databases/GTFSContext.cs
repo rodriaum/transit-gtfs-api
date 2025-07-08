@@ -95,5 +95,23 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<FareLegRule>().HasIndex(e => e.FareLegRuleId);
         modelBuilder.Entity<FareProduct>().HasIndex(e => e.FareProductId);
         modelBuilder.Entity<Network>().HasIndex(e => e.NetworkId);
+
+        modelBuilder.Entity<Stop>()
+            .Property(s => s.Location)
+            .HasColumnType("geography (point)")
+            .HasSrid(4326);
+
+        modelBuilder.Entity<Stop>()
+            .HasIndex(s => s.Location)
+            .HasMethod("GIST");
+
+        modelBuilder.Entity<Shape>()
+            .Property(s => s.Geom)
+            .HasColumnType("geometry (point)")
+            .HasSrid(4326);
+
+        modelBuilder.Entity<Shape>()
+            .HasIndex(s => s.Geom)
+            .HasMethod("GIST");
     }
 }

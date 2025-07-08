@@ -1,3 +1,4 @@
+using NetTopologySuite.Geometries;
 using TransitGtfsApi.Enums;
 
 namespace TransitGtfsApi.Models;
@@ -18,4 +19,6 @@ public class Stop
     public string? StopTimezone { get; set; }
     public AccessibilityType? WheelchairBoarding { get; set; }
     public string? PlatformCode { get; set; }
+
+    public Point? Location { get; set; }
 }
