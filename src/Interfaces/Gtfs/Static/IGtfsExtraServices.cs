@@ -19,7 +19,7 @@ public interface ITranslationService
 public interface IAttributionService
 {
     Task<List<Attribution>> GetAllAsync();
-    Task ImportDataAsync(string directoryPath);
+    Task ImportDataAsync(string directoryPath, string agencyId);
 }
 
 public interface IStopAreaService

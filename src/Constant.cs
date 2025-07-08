@@ -8,10 +8,10 @@ public class Constant
     public static readonly List<GtfsData> GtfsDataList = new List<GtfsData>
     {
         new GtfsData("metro_porto", "https://www.metrodoporto.pt/metrodoporto/uploads/document/file/693/google_transit_v2.zip"),
-        new GtfsData("STCP", "https://opendata.porto.digital/dataset/5275c986-592c-43f5-8f87-aabbd4e4f3a4/resource/89a6854f-2ea3-4ba0-8d2f-6558a9df2a98/download/horarios_gtfs_stcp_16_04_2025.zip"),
-        new GtfsData("UNIR", "https://drive.google.com/uc?export=download&id=1kzV7fKlnL6ZFwd7enOnWR2AZ7yo1eVXa"),
-        new GtfsData("1094_CP", "https://publico.cp.pt/gtfs/gtfs.zip"),
-        new GtfsData("CM", "https://api.carrismetropolitana.pt/gtfs", null,
+        new GtfsData("stcp", "https://opendata.porto.digital/dataset/5275c986-592c-43f5-8f87-aabbd4e4f3a4/resource/89a6854f-2ea3-4ba0-8d2f-6558a9df2a98/download/horarios_gtfs_stcp_16_04_2025.zip"),
+        new GtfsData("unir", "https://drive.google.com/uc?export=download&id=1kzV7fKlnL6ZFwd7enOnWR2AZ7yo1eVXa"),
+        new GtfsData("cp", "https://publico.cp.pt/gtfs/gtfs.zip"),
+        new GtfsData("carris_metropolitana", "https://api.carrismetropolitana.pt/gtfs", null,
             new Dictionary<RealtimeType, string>
             {
                 [RealtimeType.VehiclePositions] = "http://api.carrismetropolitana.pt/vehicles.pb",
@@ -22,7 +22,7 @@ public class Constant
         new GtfsData("metro_lisboa", "https://www.metrolisboa.pt/google_transit/googleTransit.zip"),
         new GtfsData("mts", "https://mts.pt/imt/MTS-20240129.zip"),
         new GtfsData("giro", "https://drive.google.com/uc?export=download&id=1tkKV40lQlFcLiJhq8SwZQdxNVjFclRCA"),
-        new GtfsData("transportes_urbanos_faro", "https://drive.google.com/uc?export=download&id=1xNHjM7yl-SS1jCkGrvIBBlOhUkFfNBjY"),
+        new GtfsData("tuf", "https://drive.google.com/uc?export=download&id=1xNHjM7yl-SS1jCkGrvIBBlOhUkFfNBjY"),
         new GtfsData("sobe_desce", "https://drive.google.com/uc?export=download&id=1C2KBOVsbm__ymWDgU1bXGbP0Gv3D2yo5"),
         new GtfsData("vamus", "https://drive.google.com/uc?export=download&id=1CM8O4ndsfSJhka42SxFUZ9eB-wE10NqX"),
         new GtfsData("a_onda", "https://drive.google.com/uc?export=download&id=1aPfsxHqopxxcjV8HlRzImzxh_a6zRxGp"),

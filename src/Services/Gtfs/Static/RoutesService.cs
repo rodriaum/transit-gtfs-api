@@ -35,7 +35,7 @@ public class RoutesService : IRoutesService
         );
     }
 
-    public async Task ImportDataAsync(string directoryPath, string? agencyId = null)
+    public async Task ImportDataAsync(string directoryPath, string agencyId)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "routes.txt");
@@ -107,7 +107,7 @@ public class RoutesService : IRoutesService
                     {
                         Id = Guid.NewGuid().ToString(),
                         RouteId = routeId,
-                        AgencyId = rowData.GetValueOrDefault("agency_id", null) ?? agencyId ?? "",
+                        AgencyId = agencyId,
                         RouteShortName = rowData.GetValueOrDefault("route_short_name", "") ?? "",
                         RouteLongName = rowData.GetValueOrDefault("route_long_name", "") ?? "",
                         RouteDesc = rowData.GetValueOrDefault("route_desc", null),

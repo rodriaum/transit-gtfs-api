@@ -136,6 +136,12 @@ public class GtfsDataService : IGtfsDataService
 
                 _logger.LogInformation($"Importing GTFS data from {gtfsDirectoryPath} (Agency: {agencyId})");
 
+                /**
+                * Because agencies are very creative with their agency_id, such as SUPER Creative values ​​like "1", "2"
+                * Where several use this, and end up duplicating or replacing, the id will be set manually based on the GtfsData
+                * from the gtfs data list which contains the download url and other information.
+                */
+
                 // This is always obligatory, as it contains agency information
                 if (!await _agencyService.ImportDataAsync(gtfsDirectoryPath, agencyId))
                 {
@@ -180,7 +186,7 @@ public class GtfsDataService : IGtfsDataService
                     async () => await _translationService.ImportDataAsync(gtfsDirectoryPath));
 
                 await ImportFileIfExists(gtfsDirectoryPath, "attributions.txt", gtfsData.IgnoredFiles,
-                    async () => await _attributionService.ImportDataAsync(gtfsDirectoryPath));
+                    async () => await _attributionService.ImportDataAsync(gtfsDirectoryPath, agencyId));
 
                 await ImportFileIfExists(gtfsDirectoryPath, "stop_areas.txt", gtfsData.IgnoredFiles,
                     async () => await _stopAreaService.ImportDataAsync(gtfsDirectoryPath));

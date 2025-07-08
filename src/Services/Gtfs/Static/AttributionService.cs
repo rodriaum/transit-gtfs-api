@@ -27,7 +27,7 @@ public class AttributionService : IAttributionService
         return await _dbContext.Set<Attribution>().ToListAsync();
     }
 
-    public async Task ImportDataAsync(string directoryPath)
+    public async Task ImportDataAsync(string directoryPath, string agencyId)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "attributions.txt");
@@ -79,12 +79,11 @@ public class AttributionService : IAttributionService
                             rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
                         }
                     }
-
-                    string agencyId = rowData.GetValueOrDefault("agency_id", null) ?? "";
                     string routeId = rowData.GetValueOrDefault("route_id", null) ?? "";
                     string tripId = rowData.GetValueOrDefault("trip_id", null) ?? "";
                     string orgName = rowData.GetValueOrDefault("organization_name", "") ?? "";
                     string uniqueKey = agencyId + ":" + routeId + ":" + tripId + ":" + orgName.ToLower();
+
                     if (existingIds.Contains(uniqueKey))
                     {
                         totalIgnored++;

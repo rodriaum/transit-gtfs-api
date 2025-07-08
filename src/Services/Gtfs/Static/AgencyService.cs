@@ -35,7 +35,7 @@ public class AgencyService : IAgencyService
         );
     }
 
-    public async Task<bool> ImportDataAsync(string directoryPath, string? agencyId = null)
+    public async Task<bool> ImportDataAsync(string directoryPath, string agencyId)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "agency.txt");
@@ -88,11 +88,11 @@ public class AgencyService : IAgencyService
                         }
                     }
 
-                    string agencyIdValue = rowData.GetValueOrDefault("agency_id", null) ?? agencyId ?? "";
+                    string agencyIdValue = agencyId;
 
                     if (existingAgencyIds.Contains(agencyIdValue.ToLower()))
                     {
-                        totalIgnored++;
+                        _logger.LogInformation("Agency data {0} already exists. It will be ignored!", agencyIdValue);
                         continue;
                     }
 
