@@ -423,7 +423,7 @@ public class StopTimesService : IStopTimesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)})"
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)})"
             );
         }
         catch (Exception ex)
