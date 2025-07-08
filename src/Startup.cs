@@ -12,8 +12,10 @@ using TransitGtfsApi.Filters;
 using TransitGtfsApi.HealthChecks;
 using TransitGtfsApi.Interfaces.Database;
 using TransitGtfsApi.Interfaces.Gtfs;
+using TransitGtfsApi.Interfaces.Gtfs.Realtime;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Services.Gtfs;
+using TransitGtfsApi.Services.Gtfs.Realtime;
 using TransitGtfsApi.Services.Gtfs.Static;
 
 namespace TransitGtfsApi;
@@ -251,6 +253,7 @@ public class Startup
         services.AddScoped<ITripsService, TripsService>();
         services.AddScoped<IGtfsDataService, GtfsDataService>();
         services.AddSingleton<IGtfsFileService, GtfsFileService>();
+        services.AddSingleton<IGtfsRealtimeCacheService, GtfsRealtimeCacheService>();
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)

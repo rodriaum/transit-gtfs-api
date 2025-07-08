@@ -48,10 +48,15 @@ public class TransfersService : ITransfersService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
             int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.Transfers.Select(t => t.FromStopId.ToLower() + ":" + t.ToStopId.ToLower()).ToListAsync()
+            );
 
             List<Transfer> entities = new List<Transfer>(batchSize);
 
@@ -83,16 +88,26 @@ public class TransfersService : ITransfersService
                         }
                     }
 
+                    string fromStopId = rowData.GetValueOrDefault("from_stop_id", "") ?? "";
+                    string toStopId = rowData.GetValueOrDefault("to_stop_id", "") ?? "";
+                    string uniqueKey = fromStopId.ToLower() + ":" + toStopId.ToLower();
+                    if (existingIds.Contains(uniqueKey))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     Transfer entity = new Transfer
                     {
                         Id = Guid.NewGuid().ToString(),
-                        FromStopId = rowData.GetValueOrDefault("from_stop_id", "") ?? "",
-                        ToStopId = rowData.GetValueOrDefault("to_stop_id", "") ?? "",
+                        FromStopId = fromStopId,
+                        ToStopId = toStopId,
                         TransferType = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_type", null)),
                         MinTransferTime = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("min_transfer_time", null), null)
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(uniqueKey);
 
                     if (entities.Count >= batchSize)
                     {
@@ -112,13 +127,15 @@ public class TransfersService : ITransfersService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

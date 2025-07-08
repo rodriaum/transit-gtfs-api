@@ -66,10 +66,15 @@ public class StopTimesService : IStopTimesService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
             int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.StopTimes.Select(st => st.TripId.ToLower() + ":" + st.StopId.ToLower() + ":" + st.StopSequence.ToString()).ToListAsync()
+            );
 
             List<StopTime> entities = new List<StopTime>(batchSize);
 
@@ -101,6 +106,16 @@ public class StopTimesService : IStopTimesService
                         }
                     }
 
+                    string tripId = rowData.GetValueOrDefault("trip_id", "") ?? "";
+                    string stopId = rowData.GetValueOrDefault("stop_id", "") ?? "";
+                    int stopSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("stop_sequence", null));
+                    string uniqueKey = tripId.ToLower() + ":" + stopId.ToLower() + ":" + stopSequence.ToString();
+                    if (existingIds.Contains(uniqueKey))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     int pickupTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("pickup_type", null), -1);
                     int dropOffTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("drop_off_type", null), -1);
                     int timepointId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("timepoint", null), -1);
@@ -108,11 +123,11 @@ public class StopTimesService : IStopTimesService
                     StopTime entity = new StopTime
                     {
                         Id = Guid.NewGuid().ToString(),
-                        TripId = rowData.GetValueOrDefault("trip_id", "") ?? "",
+                        TripId = tripId,
                         ArrivalTime = rowData.GetValueOrDefault("arrival_time", "") ?? "",
                         DepartureTime = rowData.GetValueOrDefault("departure_time", "") ?? "",
-                        StopId = rowData.GetValueOrDefault("stop_id", "") ?? "",
-                        StopSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("stop_sequence", null)),
+                        StopId = stopId,
+                        StopSequence = stopSequence,
                         StopHeadsign = rowData.GetValueOrDefault("stop_headsign", null),
                         PickupType = pickupTypeId != -1 ? EnumUtil.FromValue<PickupType>(pickupTypeId) : null,
                         DropOffType = dropOffTypeId != -1 ? dropOffTypeId : null,
@@ -121,6 +136,7 @@ public class StopTimesService : IStopTimesService
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(uniqueKey);
 
                     if (entities.Count >= batchSize)
                     {
@@ -140,13 +156,14 @@ public class StopTimesService : IStopTimesService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)})"
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

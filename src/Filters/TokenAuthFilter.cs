@@ -1,39 +1,45 @@
-﻿using TransitGtfsApi.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
+using Serilog;
 
 namespace TransitGtfsApi.Filters;
 
 public class TokenAuthFilter : IAsyncActionFilter
 {
-    private readonly string _apiToken;
+    private readonly string? _apiToken;
 
     public TokenAuthFilter()
     {
         string? apiToken = Environment.GetEnvironmentVariable("API_TOKEN");
-        _apiToken = apiToken!;
+
+        if (string.IsNullOrEmpty(apiToken))
+        {
+            Log.Warning("No API key was assigned (API_TOKEN). The system will refuse all requests.");
+        }
+
+        _apiToken = apiToken;
     }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        if (!context.HttpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
+        if (string.IsNullOrEmpty(_apiToken))
         {
-            context.Result = new UnauthorizedObjectResult(new { message = "Authorization header is missing" });
+            context.Result = new UnauthorizedObjectResult(new { message = "No API key was assigned. The system will refuse all requests." });
             return;
         }
 
-        string headerValue = authHeader.ToString();
-        if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (!context.HttpContext.Request.Headers.TryGetValue("X-API-KEY", out StringValues apiKeyHeader))
         {
-            context.Result = new UnauthorizedObjectResult(new { message = "Invalid authorization format" });
+            context.Result = new UnauthorizedObjectResult(new { message = "X-API-KEY header is missing" });
             return;
         }
 
-        string token = headerValue.Substring("Bearer ".Length).Trim();
+        string token = apiKeyHeader.ToString();
+
         if (string.IsNullOrEmpty(token) || token != _apiToken)
         {
-            context.Result = new UnauthorizedObjectResult(new { message = "Invalid token" });
+            context.Result = new UnauthorizedObjectResult(new { message = "Invalid API key" });
             return;
         }
 

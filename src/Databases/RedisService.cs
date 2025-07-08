@@ -17,8 +17,30 @@ namespace TransitGtfsApi.Databases
             _duration = duration ?? Constant.CacheDuration;
         }
 
+        public async Task<bool> IsRedisAvailable()
+        {
+            try
+            {
+                var testKey = "redis_health_check";
+                await _cache.SetStringAsync(testKey, "1", new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5) });
+                var value = await _cache.GetStringAsync(testKey);
+                return value == "1";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Redis] Health check failed.");
+                return false;
+            }
+        }
+
         public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T>> factory) where T : class
         {
+            if (!await IsRedisAvailable())
+            {
+                _logger.LogWarning("[Redis] Redis unavailable. Skipping cache for key: {Key}", key);
+                return await factory();
+            }
+
             try
             {
                 key = key.ToLower();
@@ -78,6 +100,11 @@ namespace TransitGtfsApi.Databases
 
         public async Task RemoveAsync(string key)
         {
+            if (!await IsRedisAvailable())
+            {
+                _logger.LogWarning("[Redis] Redis unavailable. Skipping remove for key: {Key}", key);
+                return;
+            }
             try
             {
                 key = key.ToLower();
@@ -98,6 +125,11 @@ namespace TransitGtfsApi.Databases
 
         public async Task<bool> ExistsAsync(string key)
         {
+            if (!await IsRedisAvailable())
+            {
+                _logger.LogWarning("[Redis] Redis unavailable. Skipping exists check for key: {Key}", key);
+                return false;
+            }
             try
             {
                 key = key.ToLower();

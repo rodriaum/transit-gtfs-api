@@ -2,6 +2,7 @@
 
 public enum RealtimeType
 {
-    Alerts,
-    Vehicles
+    ServiceAlerts,
+    VehiclePositions,
+    TripUpdates
 }

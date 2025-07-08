@@ -21,7 +21,20 @@ public class TransitDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Chaves prim�rias
+        // Tables
+        modelBuilder.Entity<Agency>().ToTable("gtfs_agencies");
+        modelBuilder.Entity<Calendar>().ToTable("gtfs_calendars");
+        modelBuilder.Entity<CalendarDate>().ToTable("gtfs_calendar_dates");
+        modelBuilder.Entity<FareAttribute>().ToTable("gtfs_fare_attributes");
+        modelBuilder.Entity<FareRule>().ToTable("gtfs_fare_rules");
+        modelBuilder.Entity<Models.Route>().ToTable("gtfs_routes");
+        modelBuilder.Entity<Shape>().ToTable("gtfs_shapes");
+        modelBuilder.Entity<Stop>().ToTable("gtfs_stops");
+        modelBuilder.Entity<StopTime>().ToTable("gtfs_stop_times");
+        modelBuilder.Entity<Transfer>().ToTable("gtfs_transfers");
+        modelBuilder.Entity<Trip>().ToTable("gtfs_trips");
+
+        // Keys
         modelBuilder.Entity<Agency>().HasKey(e => e.Id);
         modelBuilder.Entity<Calendar>().HasKey(e => e.Id);
         modelBuilder.Entity<CalendarDate>().HasKey(e => e.Id);
@@ -34,7 +47,7 @@ public class TransitDbContext : DbContext
         modelBuilder.Entity<Transfer>().HasKey(e => e.Id);
         modelBuilder.Entity<Trip>().HasKey(e => e.Id);
 
-        // Indexes principais
+        // Indexes
         modelBuilder.Entity<Agency>().HasIndex(e => e.AgencyId);
         modelBuilder.Entity<Calendar>().HasIndex(e => e.ServiceId);
         modelBuilder.Entity<CalendarDate>().HasIndex(e => e.ServiceId);

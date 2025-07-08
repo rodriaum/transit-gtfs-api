@@ -107,7 +107,7 @@ public class GtfsFileService : IGtfsFileService
 
     private bool AreRequiredFilesPresent(string directoryPath, List<string> ignoredFiles) =>
          Constant.RequiredFiles
-            .Where(file => !ignoredFiles.Contains(file))
+            .Where(file => !ignoredFiles.Exists(it => it.StartsWith(file)))
             .All(file => File.Exists(Path.Combine(directoryPath, file)));
 
 

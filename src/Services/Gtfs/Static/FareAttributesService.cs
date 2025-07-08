@@ -50,10 +50,15 @@ public class FareAttributesService : IFareAttributesService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = 1000;
+            int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
+            );
 
             List<FareAttribute> entities = new List<FareAttribute>(batchSize);
 
@@ -85,8 +90,14 @@ public class FareAttributesService : IFareAttributesService
                         }
                     }
 
-                    int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
+                    string fareId = rowData.GetValueOrDefault("fare_id", "") ?? "";
+                    if (existingIds.Contains(fareId.ToLower()))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
 
+                    int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
                     if (!EnumUtil.TryFromValue(paymentMethodId, out PaymentMethodType paymentMethod))
                     {
                         paymentMethod = PaymentMethodType.PayBefore;
@@ -95,7 +106,7 @@ public class FareAttributesService : IFareAttributesService
                     FareAttribute entity = new FareAttribute
                     {
                         Id = Guid.NewGuid().ToString(),
-                        FareId = rowData.GetValueOrDefault("fare_id", "") ?? "",
+                        FareId = fareId,
                         Price = NumberUtil.ParseDecimalSafe(rowData.GetValueOrDefault("price", null), format: CultureInfo.InvariantCulture),
                         CurrencyType = rowData.GetValueOrDefault("currency_type", "") ?? "",
                         PaymentMethod = paymentMethod,
@@ -104,6 +115,7 @@ public class FareAttributesService : IFareAttributesService
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(fareId.ToLower());
 
                     if (entities.Count >= batchSize)
                     {
@@ -123,13 +135,15 @@ public class FareAttributesService : IFareAttributesService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

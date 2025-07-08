@@ -49,10 +49,15 @@ public class ShapesService : IShapesService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
             int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
+            );
 
             List<Shape> entities = new List<Shape>(batchSize);
 
@@ -84,10 +89,17 @@ public class ShapesService : IShapesService
                         }
                     }
 
+                    string shapeId = rowData.GetValueOrDefault("shape_id", "") ?? "";
+                    if (existingIds.Contains(shapeId.ToLower()))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     Shape entity = new Shape
                     {
                         Id = Guid.NewGuid().ToString(),
-                        ShapeId = rowData.GetValueOrDefault("shape_id", "") ?? "",
+                        ShapeId = shapeId,
                         ShapePtLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture),
                         ShapePtLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture),
                         ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
@@ -95,6 +107,7 @@ public class ShapesService : IShapesService
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(shapeId.ToLower());
 
                     if (entities.Count >= batchSize)
                     {
@@ -114,13 +127,15 @@ public class ShapesService : IShapesService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

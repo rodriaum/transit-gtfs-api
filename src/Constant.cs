@@ -14,8 +14,8 @@ public class Constant
         new GtfsData("carris_metropolitana", "https://api.carrismetropolitana.pt/gtfs", null,
             new Dictionary<RealtimeType, string>
             {
-                [RealtimeType.Vehicles] = "http://api.carrismetropolitana.pt/vehicles.pb",
-                [RealtimeType.Alerts] = "http://api.carrismetropolitana.pt/alerts.pb"
+                [RealtimeType.VehiclePositions] = "http://api.carrismetropolitana.pt/vehicles.pb",
+                [RealtimeType.ServiceAlerts] = "http://api.carrismetropolitana.pt/alerts.pb"
             }),
         new GtfsData("carris", "https://gateway.carris.pt/gateway/gtfs/api/v2.11/GTFS"),
         new GtfsData("fertagus", "https://www.fertagus.pt/GTFSTMLzip/Fertagus_GTFS.zip"),
@@ -60,9 +60,12 @@ public class Constant
 
     public static readonly string[] RequiredFiles =
     [
-        "agency.txt", "calendar.txt", "calendar_dates.txt",
-        "fare_attributes.txt", "fare_rules.txt", "routes.txt",
-        "shapes.txt", "stops.txt", "stop_times.txt",
-        "transfers.txt", "trips.txt"
+        "agency.txt",
+        "stops.txt",
+        "routes.txt",
+        "trips.txt",
+        "stop_times.txt",
+        "calendar.txt",
+        "calendar_dates.txt"
     ];
 }

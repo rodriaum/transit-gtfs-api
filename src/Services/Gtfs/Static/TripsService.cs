@@ -86,10 +86,15 @@ public class TripsService : ITripsService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
             int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.Trips.Select(t => t.TripId.ToLower()).ToListAsync()
+            );
 
             List<Trip> entities = new List<Trip>(batchSize);
 
@@ -121,6 +126,13 @@ public class TripsService : ITripsService
                         }
                     }
 
+                    string tripId = rowData.GetValueOrDefault("trip_id", "") ?? "";
+                    if (existingIds.Contains(tripId.ToLower()))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     int wheelchairAccessibleId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wheelchair_accessible", null), -1);
                     int directionId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("direction_id", null), -1);
                     int bikesAllowedId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("bikes_allowed", null), -1);
@@ -130,7 +142,7 @@ public class TripsService : ITripsService
                         Id = Guid.NewGuid().ToString(),
                         RouteId = rowData.GetValueOrDefault("route_id", "") ?? "",
                         ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
-                        TripId = rowData.GetValueOrDefault("trip_id", "") ?? "",
+                        TripId = tripId,
                         TripHeadsign = rowData.GetValueOrDefault("trip_headsign", null),
                         TripShortName = rowData.GetValueOrDefault("trip_short_name", null),
                         DirectionId = directionId != -1 ? EnumUtil.FromValue<DirectionType>(directionId) : null,
@@ -141,6 +153,7 @@ public class TripsService : ITripsService
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(tripId.ToLower());
 
                     if (entities.Count >= batchSize)
                     {
@@ -160,13 +173,15 @@ public class TripsService : ITripsService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

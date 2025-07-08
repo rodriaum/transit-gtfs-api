@@ -86,9 +86,9 @@ public class GtfsDataService : IGtfsDataService
             for (int i = 0; i < gtfsDirectories.Count; i++)
             {
                 string gtfsDirectoryPath = gtfsDirectories[i];
-                string agencyKeyByPath = gtfsDirectoryPath.Split(Path.DirectorySeparatorChar.ToString()).Last();
+                string agencyIdByPath = gtfsDirectoryPath.Split(Path.DirectorySeparatorChar.ToString()).Last();
 
-                GtfsData? gtfsData = Constant.GtfsDataList.Find(it => it.AgencyId == agencyKeyByPath);
+                GtfsData? gtfsData = Constant.GtfsDataList.Find(it => string.Equals(it.AgencyId, agencyIdByPath, StringComparison.OrdinalIgnoreCase));
 
                 if (gtfsData == null)
                 {
@@ -96,32 +96,32 @@ public class GtfsDataService : IGtfsDataService
                     continue;
                 }
 
-                string? agencyKey = gtfsData.AgencyId;
+                string? agencyId = gtfsData.AgencyId;
 
-                if (string.IsNullOrWhiteSpace(agencyKey))
+                if (string.IsNullOrWhiteSpace(agencyId))
                 {
                     _logger.LogInformation($"Agency key at index {i} cannot be null.");
                     continue;
                 }
 
-                if (existingAgencies.Find(it => !string.IsNullOrWhiteSpace(it.AgencyId) && it.AgencyId == agencyKey) != null)
+                if (existingAgencies.Find(it => !string.IsNullOrWhiteSpace(it.AgencyId) && string.Equals(it.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase)) != null)
                 {
                     _logger.LogInformation($"Ignoring {gtfsData.AgencyId} becauses already exists.");
                     continue;
                 }
 
-                _logger.LogInformation($"Importing GTFS data from {gtfsDirectoryPath} (Agency: {agencyKey})");
+                _logger.LogInformation($"Importing GTFS data from {gtfsDirectoryPath} (Agency: {agencyId})");
 
                 /**
-                 * Using agencyKey in agency and routes services is because
+                 * Using agencyId in agency and routes services is because
                  * some agencies forget or do not put the agencyId, and this
                  * ends up causing internal problems when searching for id.
                  */
 
                 // This is always obligatory, as it contains agency information
-                if (!await _agencyService.ImportDataAsync(gtfsDirectoryPath, agencyKey))
+                if (!await _agencyService.ImportDataAsync(gtfsDirectoryPath, agencyId))
                 {
-                    _logger.LogWarning($"Agency {agencyKey} could not be imported.");
+                    _logger.LogWarning($"Agency {agencyId} could not be imported.");
                     continue;
                 }
 
@@ -138,7 +138,7 @@ public class GtfsDataService : IGtfsDataService
                     async () => await _fareRulesService.ImportDataAsync(gtfsDirectoryPath));
 
                 await ImportFileIfExists(gtfsDirectoryPath, "routes.txt", gtfsData.IgnoredFiles,
-                    async () => await _routesService.ImportDataAsync(gtfsDirectoryPath, agencyKey));
+                    async () => await _routesService.ImportDataAsync(gtfsDirectoryPath, agencyId));
 
                 await ImportFileIfExists(gtfsDirectoryPath, "shapes.txt", gtfsData.IgnoredFiles,
                     async () => await _shapesService.ImportDataAsync(gtfsDirectoryPath));
@@ -175,7 +175,7 @@ public class GtfsDataService : IGtfsDataService
 
     private async Task ImportFileIfExists(string directoryPath, string fileName, List<string> ignoredFiles, Func<Task> importAction)
     {
-        if (ignoredFiles.Contains(fileName))
+        if (!ignoredFiles.Exists(it => it.StartsWith(fileName)))
         {
             _logger.LogDebug($"Skipping import of ignored file: {fileName}");
             return;

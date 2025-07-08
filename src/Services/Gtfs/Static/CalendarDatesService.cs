@@ -49,10 +49,15 @@ public class CalendarDatesService : ICalendarDatesService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = 1000;
+            int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.CalendarDates.Select(c => c.ServiceId.ToLower() + ":" + c.Date.ToLower()).ToListAsync()
+            );
 
             List<CalendarDate> entities = new List<CalendarDate>(batchSize);
 
@@ -92,15 +97,25 @@ public class CalendarDatesService : ICalendarDatesService
                         continue;
                     }
 
+                    string serviceId = rowData.GetValueOrDefault("service_id", "") ?? "";
+                    string date = rowData.GetValueOrDefault("date", "") ?? "";
+                    string uniqueKey = serviceId.ToLower() + ":" + date.ToLower();
+                    if (existingIds.Contains(uniqueKey))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     CalendarDate entity = new CalendarDate
                     {
                         Id = Guid.NewGuid().ToString(),
-                        ServiceId = rowData.GetValueOrDefault("service_id", "") ?? "",
-                        Date = rowData.GetValueOrDefault("date", "") ?? "",
+                        ServiceId = serviceId,
+                        Date = date,
                         ExceptionType = exceptionType
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(uniqueKey);
 
                     if (entities.Count >= batchSize)
                     {
@@ -120,13 +135,15 @@ public class CalendarDatesService : ICalendarDatesService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

@@ -35,7 +35,7 @@ public class RoutesService : IRoutesService
         );
     }
 
-    public async Task ImportDataAsync(string directoryPath, string? agencyKey = null)
+    public async Task ImportDataAsync(string directoryPath, string? agencyId = null)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "routes.txt");
@@ -48,10 +48,15 @@ public class RoutesService : IRoutesService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = 1000;
+            int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.Routes.Select(r => r.RouteId.ToLower()).ToListAsync()
+            );
 
             List<Models.Route> entities = new List<Models.Route>(batchSize);
 
@@ -83,6 +88,13 @@ public class RoutesService : IRoutesService
                         }
                     }
 
+                    string routeId = rowData.GetValueOrDefault("route_id", "") ?? "";
+                    if (existingIds.Contains(routeId.ToLower()))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     int routeTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("route_type", null), -1);
 
                     if (!EnumUtil.TryFromValue(routeTypeId, out RouteType routeType))
@@ -94,8 +106,8 @@ public class RoutesService : IRoutesService
                     Models.Route entity = new Models.Route
                     {
                         Id = Guid.NewGuid().ToString(),
-                        RouteId = rowData.GetValueOrDefault("route_id", "") ?? "",
-                        AgencyId = rowData.GetValueOrDefault("agency_id", "") ?? agencyKey ?? "",
+                        RouteId = routeId,
+                        AgencyId = rowData.GetValueOrDefault("agency_id", null) ?? agencyId ?? "",
                         RouteShortName = rowData.GetValueOrDefault("route_short_name", "") ?? "",
                         RouteLongName = rowData.GetValueOrDefault("route_long_name", "") ?? "",
                         RouteDesc = rowData.GetValueOrDefault("route_desc", null),
@@ -109,6 +121,7 @@ public class RoutesService : IRoutesService
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(routeId.ToLower());
 
                     if (entities.Count >= batchSize)
                     {
@@ -128,13 +141,15 @@ public class RoutesService : IRoutesService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

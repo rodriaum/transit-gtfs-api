@@ -6,4 +6,5 @@ public interface IRedisService
     Task RemoveAsync(string key);
     Task RemoveByPrefixAsync(string prefix);
     Task<bool> ExistsAsync(string key);
+    Task<bool> IsRedisAvailable();
 }

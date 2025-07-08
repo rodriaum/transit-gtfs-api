@@ -48,10 +48,15 @@ public class FareRulesService : IFareRulesService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = 1000;
+            int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingIds = new HashSet<string>(
+                await _dbContext.FareRules.Select(f => f.FareId.ToLower() + ":" + (f.RouteId ?? "").ToLower() + ":" + (f.OriginId ?? "").ToLower() + ":" + (f.DestinationId ?? "").ToLower() + ":" + (f.ContainsId ?? "").ToLower()).ToListAsync()
+            );
 
             List<FareRule> entities = new List<FareRule>(batchSize);
 
@@ -83,17 +88,30 @@ public class FareRulesService : IFareRulesService
                         }
                     }
 
+                    string fareId = rowData.GetValueOrDefault("fare_id", "") ?? "";
+                    string routeId = rowData.GetValueOrDefault("route_id", null) ?? "";
+                    string originId = rowData.GetValueOrDefault("origin_id", null) ?? "";
+                    string destinationId = rowData.GetValueOrDefault("destination_id", null) ?? "";
+                    string containsId = rowData.GetValueOrDefault("contains_id", null) ?? "";
+                    string uniqueKey = fareId.ToLower() + ":" + routeId.ToLower() + ":" + originId.ToLower() + ":" + destinationId.ToLower() + ":" + containsId.ToLower();
+                    if (existingIds.Contains(uniqueKey))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     FareRule entity = new FareRule
                     {
                         Id = Guid.NewGuid().ToString(),
-                        FareId = rowData.GetValueOrDefault("fare_id", "") ?? "",
-                        RouteId = rowData.GetValueOrDefault("route_id", null),
-                        OriginId = rowData.GetValueOrDefault("origin_id", null),
-                        DestinationId = rowData.GetValueOrDefault("destination_id", null),
-                        ContainsId = rowData.GetValueOrDefault("contains_id", null)
+                        FareId = fareId,
+                        RouteId = string.IsNullOrEmpty(routeId) ? null : routeId,
+                        OriginId = string.IsNullOrEmpty(originId) ? null : originId,
+                        DestinationId = string.IsNullOrEmpty(destinationId) ? null : destinationId,
+                        ContainsId = string.IsNullOrEmpty(containsId) ? null : containsId
                     };
 
                     entities.Add(entity);
+                    existingIds.Add(uniqueKey);
 
                     if (entities.Count >= batchSize)
                     {
@@ -113,13 +131,15 @@ public class FareRulesService : IFareRulesService
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({{0}})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            throw;
+            return;
         }
     }
 }

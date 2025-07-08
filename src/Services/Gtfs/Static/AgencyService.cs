@@ -31,11 +31,11 @@ public class AgencyService : IAgencyService
     {
         return await _redis.GetOrSetAsync(
             $"agency-{agencyId}",
-            async () => await _dbContext.Agencies.FirstOrDefaultAsync(a => a.AgencyId == agencyId)
+            async () => await _dbContext.Agencies.FirstOrDefaultAsync(a => string.Equals(a.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase))
         );
     }
 
-    public async Task<bool> ImportDataAsync(string directoryPath, string? agencyKey = null)
+    public async Task<bool> ImportDataAsync(string directoryPath, string? agencyId = null)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "agency.txt");
@@ -48,10 +48,15 @@ public class AgencyService : IAgencyService
 
         try
         {
-            _logger.LogInformation($"Importing data from {filePath}");
+            _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = 1000;
+            int batchSize = Constant.BatchSizeImport;
             int totalImported = 0;
+            int totalIgnored = 0;
+
+            HashSet<string> existingAgencyIds = new(
+                await _dbContext.Agencies.Select(a => a.AgencyId.ToLower()).ToListAsync()
+            );
 
             List<Agency> entities = new List<Agency>(batchSize);
 
@@ -83,10 +88,18 @@ public class AgencyService : IAgencyService
                         }
                     }
 
+                    string agencyIdValue = rowData.GetValueOrDefault("agency_id", null) ?? agencyId ?? "";
+
+                    if (existingAgencyIds.Contains(agencyIdValue.ToLower()))
+                    {
+                        totalIgnored++;
+                        continue;
+                    }
+
                     Agency entity = new Agency
                     {
                         Id = Guid.NewGuid().ToString(),
-                        AgencyId = rowData.GetValueOrDefault("agency_id", "") ?? agencyKey ?? "",
+                        AgencyId = agencyIdValue,
                         AgencyName = rowData.GetValueOrDefault("agency_name", "") ?? "",
                         AgencyUrl = rowData.GetValueOrDefault("agency_url", "") ?? "",
                         AgencyTimezone = rowData.GetValueOrDefault("agency_timezone", "") ?? "",
@@ -98,11 +111,17 @@ public class AgencyService : IAgencyService
 
                     entities.Add(entity);
 
+                    _logger.LogInformation(
+                        $"Importing data to database... ({0})",
+                        TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+                    );
+
                     if (entities.Count >= batchSize)
                     {
                         await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
+                        existingAgencyIds.Add(agencyIdValue.ToLower());
                     }
                 }
 
@@ -111,13 +130,21 @@ public class AgencyService : IAgencyService
                     await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
+
+                    foreach (Agency e in entities)
+                    {
+                        existingAgencyIds.Add(e.AgencyId.ToLower());
+                    }
                 }
             }
 
             stopwatch.Stop();
 
-            string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Imported {totalImported} records from {filePath} in {duration}");
+            _logger.LogInformation(
+                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} file(s) ignored. ({0})",
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
+            );
+
             return true;
         }
         catch (Exception ex)

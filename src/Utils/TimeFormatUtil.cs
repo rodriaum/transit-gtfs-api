@@ -4,9 +4,9 @@ namespace TransitGtfsApi.Utils;
 
 public static class TimeFormatUtil
 {
-    public static string FormatDurationFromMilliseconds(long milliseconds)
+    public static string FormatDurationFromMilliseconds(long milliseconds, bool simplified = true)
     {
-        if (milliseconds < 0) return "0 milliseconds";
+        if (milliseconds < 0) return simplified ? "0ms" : "0 milliseconds";
 
         var sb = new StringBuilder();
         long totalSeconds = milliseconds / 1000;
@@ -25,33 +25,43 @@ public static class TimeFormatUtil
         totalSeconds %= 60;
         long seconds = totalSeconds;
 
-        void AppendUnit(long value, string singular, string plural)
+        void AppendUnit(long value, string fullSingular, string fullPlural, string shortForm)
         {
             if (value > 0)
             {
-                if (sb.Length > 0) sb.Append(", ");
-                sb.Append(value).Append(' ').Append(value == 1 ? singular : plural);
+                if (sb.Length > 0) sb.Append(simplified ? " " : ", ");
+                if (simplified)
+                {
+                    sb.Append(value).Append(shortForm);
+                }
+                else
+                {
+                    sb.Append(value).Append(' ').Append(value == 1 ? fullSingular : fullPlural);
+                }
             }
         }
 
-        AppendUnit(years, "year", "years");
-        AppendUnit(months, "month", "months");
-        AppendUnit(weeks, "week", "weeks");
-        AppendUnit(days, "day", "days");
-        AppendUnit(hours, "hour", "hours");
-        AppendUnit(minutes, "minute", "minutes");
-        AppendUnit(seconds, "second", "seconds");
-        AppendUnit(remainingMilliseconds, "millisecond", "milliseconds");
+        AppendUnit(years, "year", "years", "y");
+        AppendUnit(months, "month", "months", "mo");
+        AppendUnit(weeks, "week", "weeks", "w");
+        AppendUnit(days, "day", "days", "d");
+        AppendUnit(hours, "hour", "hours", "h");
+        AppendUnit(minutes, "minute", "minutes", "m");
+        AppendUnit(seconds, "second", "seconds", "s");
+        AppendUnit(remainingMilliseconds, "millisecond", "milliseconds", "ms");
 
         if (sb.Length == 0)
-            return "0 milliseconds";
+            return simplified ? "0ms" : "0 milliseconds";
 
         string result = sb.ToString();
-        int lastComma = result.LastIndexOf(", ");
 
-        if (lastComma != -1)
+        if (!simplified)
         {
-            result = result.Remove(lastComma, 2).Insert(lastComma, " and ");
+            int lastComma = result.LastIndexOf(", ");
+            if (lastComma != -1)
+            {
+                result = result.Remove(lastComma, 2).Insert(lastComma, " and ");
+            }
         }
 
         return result;
