@@ -53,9 +53,9 @@ public class StopTimesService : IStopTimesService
         return stopTimes;
     }
 
-    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int page = 1, int pageSize = 100, bool realtime = false)
+    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int page = 1, int pageSize = 100)
     {
-        var stopTimes = await _redis.GetOrSetAsync(
+        List<StopTime> stopTimes = await _redis.GetOrSetAsync(
             $"stop-times-stop-{stopId}-{page}-{pageSize}",
             async () =>
             {
@@ -69,7 +69,7 @@ public class StopTimesService : IStopTimesService
             }
         ) ?? new List<StopTime>();
 
-        if (!realtime || !stopTimes.Any())
+        if (!stopTimes.Any())
             return stopTimes;
 
         return stopTimes;
@@ -77,10 +77,21 @@ public class StopTimesService : IStopTimesService
 
     public async Task<List<StopTime>> GetStopTimesForTrip(string tripId)
     {
-        return await _dbContext.StopTimes
-            .Where(s => s.TripId == tripId)
-            .OrderBy(s => s.StopSequence)
-            .ToListAsync();
+        List<StopTime> stopTimes = await _redis.GetOrSetAsync(
+            $"stop-times-trip-{tripId}",
+            async () =>
+            {
+                return await _dbContext.StopTimes
+                    .Where(s => s.TripId == tripId)
+                    .OrderBy(s => s.StopSequence)
+                    .ToListAsync();
+            }
+        ) ?? new List<StopTime>();
+
+        if (!stopTimes.Any())
+            return stopTimes;
+
+        return stopTimes;
     }
 
     public async Task ImportDataAsync(string directoryPath)

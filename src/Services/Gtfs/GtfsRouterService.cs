@@ -1,7 +1,9 @@
 ﻿namespace TransitGtfsApi.Services.Gtfs;
 
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using TransitGtfsApi.Databases;
+using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Gtfs;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
 using TransitGtfsApi.Models;
@@ -33,6 +35,7 @@ public class GtfsRouterService : IGtfsRouterService
     int maxRoutes = 1)
     {
         double directDistance = MathUtil.Haversine(fromLat, fromLon, toLat, toLon);
+
         if (directDistance < MIN_DISTANCE_THRESHOLD)
         {
             return new List<RoutePlan>
@@ -44,9 +47,9 @@ public class GtfsRouterService : IGtfsRouterService
                 {
                     new RouteLeg
                     {
-                        Mode = Constant.ModeWalkingKey,
-                        From = "Origem",
-                        To = "Destino",
+                        Mode = RouteLegModeType.None,
+                        From = null,
+                        To = null,
                         DistanceMeters = directDistance,
                         Duration = TimeSpan.FromSeconds(directDistance / WALKING_SPEED_MPS)
                     }
@@ -55,8 +58,11 @@ public class GtfsRouterService : IGtfsRouterService
         };
         }
 
-        Stop? originStop = await _stopsService.GetNearestStopAsync(fromLat, fromLon);
-        Stop? destStop = await _stopsService.GetNearestStopAsync(toLat, toLon);
+        List<Stop> originStops = await _stopsService.GetNearestStopAsync(fromLat, fromLon, limit: 1);
+        List<Stop> destStops = await _stopsService.GetNearestStopAsync(toLat, toLon, limit: 1);
+
+        Stop? originStop = originStops.FirstOrDefault();
+        Stop? destStop = destStops.FirstOrDefault();
 
         if (originStop == null || destStop == null) return new List<RoutePlan>();
 
@@ -96,9 +102,9 @@ public class GtfsRouterService : IGtfsRouterService
             {
                 RouteLeg finalLeg = new RouteLeg
                 {
-                    Mode = "walking",
-                    From = stop.StopName,
-                    To = "Destino",
+                    Mode = RouteLegModeType.Walking,
+                    From = stop,
+                    To = null,
                     DistanceMeters = distanceToDest,
                     Duration = TimeSpan.FromSeconds(distanceToDest / WALKING_SPEED_MPS)
                 };
@@ -115,9 +121,9 @@ public class GtfsRouterService : IGtfsRouterService
                 continue;
             }
 
-            List<(string TripId, string RouteShortName)> trips = await GetUpcomingTripsFromStop(current.StopId, current.ArrivalTime);
+            List<(string TripId, Route Route)> trips = await GetUpcomingTripsFromStop(current.StopId, current.ArrivalTime);
 
-            foreach ((string tripId, string routeShortName) in trips)
+            foreach ((string tripId, Route route) in trips)
             {
                 if (!stopTimesCache.TryGetValue(tripId, out List<StopTime>? stopTimes))
                 {
@@ -140,10 +146,10 @@ public class GtfsRouterService : IGtfsRouterService
 
                     RouteLeg leg = new RouteLeg
                     {
-                        Mode = "transit",
-                        Route = routeShortName,
-                        From = stop.StopName,
-                        To = nextStop.StopName,
+                        Mode = RouteLegModeType.Transit,
+                        Route = route,
+                        From = stop,
+                        To = nextStop,
                         Departure = current.ArrivalTime,
                         Arrival = arrival,
                         Duration = arrival - current.ArrivalTime
@@ -168,7 +174,7 @@ public class GtfsRouterService : IGtfsRouterService
         return foundRoutes;
     }
 
-    private async Task<List<(string TripId, string RouteShortName)>> GetUpcomingTripsFromStop(string stopId, DateTime after)
+    private async Task<List<(string TripId, Route Route)>> GetUpcomingTripsFromStop(string stopId, DateTime after)
     {
         var time = after.TimeOfDay;
 
@@ -182,11 +188,11 @@ public class GtfsRouterService : IGtfsRouterService
             .Join(_context.Routes, st => st.t.RouteId, r => r.RouteId, (st, r) => new
             {
                 st.t.TripId,
-                r.RouteShortName
+                r
             })
             .Distinct()
             .ToList();
 
-        return filtered.Select(x => (x.TripId, x.RouteShortName)).ToList();
+        return filtered.Select(x => (x.TripId, x.r)).ToList();
     }
 }

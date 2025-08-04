@@ -38,14 +38,15 @@ public class StopsService : IStopsService
         );
     }
 
-    public async Task<Stop?> GetNearestStopAsync(double lat, double lon)
+    public async Task<List<Stop>> GetNearestStopAsync(double lat, double lon, int limit = 1)
     {
         var point = new Point(lon, lat) { SRID = Constant.GeometryFactory.SRID };
 
         return await _dbContext.Stops
             .Where(s => s.Location != null)
             .OrderBy(s => s.Location!.Distance(point))
-            .FirstOrDefaultAsync();
+            .Take(limit)
+            .ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)

@@ -15,12 +15,14 @@ public class Constant
         new GtfsData("stcp", "https://opendata.porto.digital/dataset/5275c986-592c-43f5-8f87-aabbd4e4f3a4/resource/89a6854f-2ea3-4ba0-8d2f-6558a9df2a98/download/horarios_gtfs_stcp_16_04_2025.zip"),
         new GtfsData("unir", "https://drive.google.com/uc?export=download&id=1kzV7fKlnL6ZFwd7enOnWR2AZ7yo1eVXa"),
         new GtfsData("cp", "https://publico.cp.pt/gtfs/gtfs.zip"),
+        /*
         new GtfsData("carris_metropolitana", "https://api.carrismetropolitana.pt/gtfs",
             realtimeUrls: new Dictionary<RealtimeType, string>
             {
                 [RealtimeType.VehiclePositions] = "http://api.carrismetropolitana.pt/vehicles.pb",
                 [RealtimeType.ServiceAlerts] = "http://api.carrismetropolitana.pt/alerts.pb"
             }),
+        */
         new GtfsData("carris", "https://gateway.carris.pt/gateway/gtfs/api/v2.11/GTFS"),
         new GtfsData("fertagus", "https://www.fertagus.pt/GTFSTMLzip/Fertagus_GTFS.zip"),
         new GtfsData("metro_lisboa", "https://www.metrolisboa.pt/google_transit/googleTransit.zip"),

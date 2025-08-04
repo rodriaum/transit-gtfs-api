@@ -1,4 +1,5 @@
 using NetTopologySuite.Geometries;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using TransitGtfsApi.Enums;
 
@@ -23,4 +24,26 @@ public class Stop
 
     [JsonIgnore]
     public Point? Location { get; set; }
+
+    [NotMapped]
+    public long? Distance { get; set; }
+    [NotMapped]
+    public long? WalkingTime { get; set; }
+
+    public void CalcDistAndWalking(double lat, double lon)
+    {
+        GeometryFactory geometryFactory = GeometryFactory.Default;
+        Point userLocation = geometryFactory.CreatePoint(new Coordinate(lon, lat));
+
+        if (Location == null)
+        {
+            Location = geometryFactory.CreatePoint(new Coordinate(StopLon, StopLat));
+        }
+
+        double distanceInMeters = Location.Distance(userLocation) * 111_000;
+
+        Distance = (long)Math.Round(distanceInMeters);
+
+        WalkingTime = (long)Math.Round(distanceInMeters / 1.4);
+    }
 }

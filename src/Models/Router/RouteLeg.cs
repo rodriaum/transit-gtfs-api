@@ -1,11 +1,13 @@
-﻿namespace TransitGtfsApi.Models.Router;
+﻿using TransitGtfsApi.Enums;
+
+namespace TransitGtfsApi.Models.Router;
 
 public class RouteLeg
 {
-    public string Mode { get; set; } = null!; // "walking" ou "transit"
-    public string? Route { get; set; }
-    public string From { get; set; } = null!;
-    public string To { get; set; } = null!;
+    public RouteLegModeType Mode { get; set; } = RouteLegModeType.None;
+    public Route? Route { get; set; }
+    public Stop? From { get; set; } = null!;
+    public Stop? To { get; set; } = null!;
     public DateTime? Departure { get; set; }
     public DateTime? Arrival { get; set; }
     public double? DistanceMeters { get; set; }

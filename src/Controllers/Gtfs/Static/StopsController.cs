@@ -1,6 +1,6 @@
-using TransitGtfsApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using TransitGtfsApi.Interfaces.Gtfs.Static;
+using TransitGtfsApi.Models;
 
 namespace TransitGtfsApi.Controllers.Gtfs.Static;
 
@@ -24,10 +24,30 @@ public class StopsController : ControllerBase
     [HttpGet("stops/{id}")]
     public async Task<ActionResult<Stop>> GetById(string id)
     {
-        var stop = await _stopsService.GetByIdAsync(id);
+        Stop? stop = await _stopsService.GetByIdAsync(id);
+
         if (stop == null)
             return NotFound();
 
         return stop;
+    }
+
+    [HttpGet("nearby-stops")]
+    public async Task<ActionResult<List<Stop>>> GetNearbyStops(
+        [FromQuery] double latitude,
+        [FromQuery] double longitude,
+        [FromQuery] int limit = 1)
+    {
+        List<Stop> nearestStops = await _stopsService.GetNearestStopAsync(latitude, longitude, limit);
+
+        if (nearestStops == null || !nearestStops.Any())
+            return NotFound();
+
+        foreach (Stop stopItem in nearestStops)
+        {
+            stopItem.CalcDistAndWalking(latitude, longitude);
+        }
+
+        return Ok(nearestStops);
     }
 }

@@ -134,7 +134,7 @@ public class Startup
         .AddJsonOptions(opts =>
         {
             opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
-            opts.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+            opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
             opts.JsonSerializerOptions.MaxDepth = 64;
         });
 
