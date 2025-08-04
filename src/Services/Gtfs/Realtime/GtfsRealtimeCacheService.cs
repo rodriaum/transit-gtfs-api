@@ -2,12 +2,15 @@ namespace TransitGtfsApi.Services.Gtfs.Realtime;
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using TransitGtfsApi;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Gtfs.Realtime;
+using TransitGtfsApi.Models;
 using TransitRealtime;
 
 public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
@@ -64,7 +67,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
     /// Fetches the alerts.pb GTFS-Realtime feed
     /// </summary>
     public async Task<List<Alert>?> GetAlertsAsync(
-        string agencyId,
+        string? agencyId = null,
         string? routeId = null,
         string? tripId = null,
         string? stopId = null,
@@ -74,15 +77,50 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         RouteType? routeType = null,
         CancellationToken cancellationToken = default)
     {
-        FeedMessage? message = await GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.ServiceAlerts) ?? "", "alerts.pb", cancellationToken);
+        List<FeedMessage> messages = new List<FeedMessage>();
 
-        if (message == null)
+        if (agencyId != null)
+        {
+            FeedMessage? message = await GetFeedAsync(
+                GetPathByAgency(agencyId, RealtimeType.ServiceAlerts) ?? "",
+                $"alerts_{agencyId}.pb",
+                cancellationToken
+            );
+            if (message != null)
+            {
+                messages.Add(message);
+            }
+        }
+        else
+        {
+            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            {
+                FeedMessage? message = await GetFeedAsync(
+                    GetPathByAgency(gtfsData.AgencyId, RealtimeType.ServiceAlerts) ?? "",
+                    $"alerts_{gtfsData.AgencyId}.pb",
+                    cancellationToken
+                );
+
+                if (message != null)
+                {
+                    messages.Add(message);
+                }
+            }
+        }
+
+        if (messages == null || !messages.Any())
             return null;
 
-        List<Alert> result = message.Entity
-            .Where(entity => entity.Alert != null)
-            .Select(entity => entity.Alert)
-            .ToList();
+        List<Alert> result = new List<Alert>();
+
+        foreach (FeedMessage message in messages)
+        {
+            result.AddRange(message.Entity
+                .Where(entity => entity.Alert != null)
+                .Select(entity => entity.Alert)
+                .ToList()
+            );
+        }
 
         result.RemoveAll(alert =>
         {
@@ -127,7 +165,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
     /// Fetches the vehicles.pb GTFS-Realtime feed
     /// </summary>
     public async Task<List<VehiclePosition>?> GetVehiclePositionsAsync(
-        string agencyId,
+        string? agencyId = null,
         string? stopId = null,
         string? tripId = null,
         string? routeId = null,
@@ -139,14 +177,53 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         DirectionType? directionType = null,
         CancellationToken cancellationToken = default)
     {
-        FeedMessage? message = await GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.VehiclePositions) ?? "", "vehicle_positions.pb", cancellationToken);
-        if (message == null)
+        List<FeedMessage> messages = new List<FeedMessage>();
+
+        if (agencyId != null)
+        {
+            FeedMessage? message = await GetFeedAsync(
+                GetPathByAgency(agencyId, RealtimeType.VehiclePositions) ?? "",
+                $"vehicle_positions_{agencyId}.pb",
+                cancellationToken
+            );
+            if (message != null)
+            {
+                messages.Add(message);
+            }
+        }
+        else
+        {
+            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            {
+                FeedMessage? message = await GetFeedAsync(
+                    GetPathByAgency(gtfsData.AgencyId, RealtimeType.VehiclePositions) ?? "",
+                    $"vehicle_positions_{gtfsData.AgencyId}.pb",
+                    cancellationToken
+                );
+
+                if (message != null)
+                {
+                    messages.Add(message);
+                }
+            }
+        }
+
+        if (messages == null || !messages.Any())
             return null;
 
-        List<VehiclePosition> result = message.Entity
-            .Where(entity => entity.Vehicle != null)
-            .Select(entity => entity.Vehicle)
-            .ToList();
+        List<VehiclePosition> result = new List<VehiclePosition>();
+
+        foreach (FeedMessage message in messages)
+        {
+            result.AddRange(message.Entity
+                .Where(entity => entity.Vehicle != null)
+                .Select(entity => entity.Vehicle)
+                .ToList()
+            );
+        }
+
+        if (result == null || !result.Any())
+            return null;
 
         result.RemoveAll(v =>
         {
@@ -191,7 +268,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
     }
 
     public async Task<List<TripUpdate>?> GetTripUpdatesAsync(
-    string agencyId,
+    string? agencyId = null,
     string? stopId = null,
     string? tripId = null,
     string? routeId = null,
@@ -201,14 +278,50 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
     ulong? endStartTimestamp = null,
     CancellationToken cancellationToken = default)
     {
-        FeedMessage? message = await GetFeedAsync(GetPathByAgency(agencyId, RealtimeType.TripUpdates) ?? "", "trip_updates.pb", cancellationToken);
-        if (message == null)
+        List<FeedMessage> messages = new List<FeedMessage>();
+
+        if (agencyId != null)
+        {
+            FeedMessage? message = await GetFeedAsync(
+                GetPathByAgency(agencyId, RealtimeType.TripUpdates) ?? "",
+                $"trip_updates_{agencyId}.pb",
+                cancellationToken
+            );
+            if (message != null)
+            {
+                messages.Add(message);
+            }
+        }
+        else
+        {
+            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            {
+                FeedMessage? message = await GetFeedAsync(
+                    GetPathByAgency(gtfsData.AgencyId, RealtimeType.TripUpdates) ?? "",
+                    $"trip_updates_{gtfsData.AgencyId}.pb",
+                    cancellationToken
+                );
+
+                if (message != null)
+                {
+                    messages.Add(message);
+                }
+            }
+        }
+
+        if (messages == null || !messages.Any())
             return null;
 
-        List<TripUpdate> result = message.Entity
-            .Where(entity => entity.TripUpdate != null)
-            .Select(entity => entity.TripUpdate)
-            .ToList();
+        List<TripUpdate> result = new List<TripUpdate>();
+
+        foreach (FeedMessage message in messages)
+        {
+            result.AddRange(message.Entity
+                .Where(entity => entity.TripUpdate != null)
+                .Select(entity => entity.TripUpdate)
+                .ToList()
+            );
+        }
 
         result.RemoveAll(update =>
         {

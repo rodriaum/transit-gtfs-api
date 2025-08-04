@@ -1,18 +1,22 @@
-﻿using TransitGtfsApi.Enums;
+﻿using NetTopologySuite;
+using NetTopologySuite.Geometries;
+using TransitGtfsApi.Enums;
 using TransitGtfsApi.Models;
 
 namespace TransitGtfsApi;
 
 public class Constant
 {
+    public static readonly GeometryFactory GeometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+
     public static readonly List<GtfsData> GtfsDataList = new List<GtfsData>
     {
-        new GtfsData("metro_porto", "https://www.metrodoporto.pt/metrodoporto/uploads/document/file/693/google_transit_v2.zip"),
+        new GtfsData("metro_porto", "https://www.metrodoporto.pt/metrodoporto/uploads/document/file/746/gtfs___horario_de_verao_2025_21_07_2025.zip"),
         new GtfsData("stcp", "https://opendata.porto.digital/dataset/5275c986-592c-43f5-8f87-aabbd4e4f3a4/resource/89a6854f-2ea3-4ba0-8d2f-6558a9df2a98/download/horarios_gtfs_stcp_16_04_2025.zip"),
         new GtfsData("unir", "https://drive.google.com/uc?export=download&id=1kzV7fKlnL6ZFwd7enOnWR2AZ7yo1eVXa"),
         new GtfsData("cp", "https://publico.cp.pt/gtfs/gtfs.zip"),
-        new GtfsData("carris_metropolitana", "https://api.carrismetropolitana.pt/gtfs", null,
-            new Dictionary<RealtimeType, string>
+        new GtfsData("carris_metropolitana", "https://api.carrismetropolitana.pt/gtfs",
+            realtimeUrls: new Dictionary<RealtimeType, string>
             {
                 [RealtimeType.VehiclePositions] = "http://api.carrismetropolitana.pt/vehicles.pb",
                 [RealtimeType.ServiceAlerts] = "http://api.carrismetropolitana.pt/alerts.pb"
@@ -34,7 +38,9 @@ public class Constant
         new GtfsData("tub", "https://www.tub.pt/developer/gtfs/feed/tub.zip"),
         new GtfsData("tcp", "https://www.tcbarreiro.pt/front/files/sample_gtfs/GTFS-TCB_24.zip"),
         new GtfsData("rmtejo_ii", "https://drive.google.com/uc?export=download&id=1v9eGjezOzbaBQi-Aa5c15tZXcSiiDwqA"),
-        new GtfsData("rdl_rodoviaria_lis", "https://drive.google.com/uc?export=download&id=1NqcOk8IrlV73TBonJAxpzIUTjaAjF27M")
+        new GtfsData("rdl_rodoviaria_lis", "https://drive.google.com/uc?export=download&id=1NqcOk8IrlV73TBonJAxpzIUTjaAjF27M"),
+        // new GtfsData("auto_viacao_aveirense", "https://transitfeeds.com/p/camara-municipal-de-agueda/1129/latest/download"),
+        new GtfsData("transtejo", "https://transitfeeds.com/p/transtejo/1006/latest/download"),
     };
 
     public const string RootPath = "../Assets";
@@ -45,6 +51,9 @@ public class Constant
 
     public const string Name = "Transit GTFS";
     public const string Version = "1.0.0";
+
+    public const string ModeWalkingKey = "walking";
+    public const string ModeTransitKey = "transit";
 
     public const int BatchSizeImport = 1000;
 

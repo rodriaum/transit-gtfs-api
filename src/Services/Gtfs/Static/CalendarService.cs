@@ -55,7 +55,7 @@ public class CalendarService : ICalendarService
             int totalImported = 0;
             int totalIgnored = 0;
 
-            HashSet<string> existingIds = new HashSet<string>(
+            HashSet<string> existingIds = new(
                 await _dbContext.Calendars.Select(c => c.ServiceId.ToLower()).ToListAsync()
             );
 

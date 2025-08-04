@@ -12,5 +12,5 @@ public class TranslationController : ControllerBase
     public TranslationController(ITranslationService service) => _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<List<Translation>>> GetAll() => await _service.GetAllAsync();
+    public async Task<ActionResult<List<AgencyTranslation>>> GetAll() => await _service.GetAllAsync();
 }

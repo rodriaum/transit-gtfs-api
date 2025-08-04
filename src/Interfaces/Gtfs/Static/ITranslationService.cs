@@ -6,6 +6,6 @@ namespace TransitGtfsApi.Interfaces.Gtfs.Static;
 
 public interface ITranslationService
 {
-    Task<List<Translation>> GetAllAsync();
+    Task<List<AgencyTranslation>> GetAllAsync();
     Task ImportDataAsync(string directoryPath);
 }

@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Text.Json.Serialization;
 using TransitGtfsApi.Databases;
 using TransitGtfsApi.Filters;
 using TransitGtfsApi.HealthChecks;
@@ -128,6 +130,12 @@ public class Startup
                 Duration = 60,
                 Location = ResponseCacheLocation.Any
             });
+        })
+        .AddJsonOptions(opts =>
+        {
+            opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
+            opts.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+            opts.JsonSerializerOptions.MaxDepth = 64;
         });
 
         services.AddResponseCaching();
@@ -135,6 +143,7 @@ public class Startup
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = $"{Constant.Name} API", Version = Constant.Version });
+            c.DocumentFilter<IgnoreProtobufTypesDocumentFilter>();
             c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Description = "JWT Authorization header using the Bearer scheme",
@@ -263,6 +272,7 @@ public class Startup
         services.AddScoped<IFareLegRuleService, FareLegRuleService>();
         services.AddScoped<IFareProductService, FareProductService>();
         services.AddScoped<INetworkService, NetworkService>();
+        services.AddScoped<IGtfsRouterService, GtfsRouterService>();
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)

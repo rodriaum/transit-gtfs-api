@@ -1,5 +1,6 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using System.Diagnostics;
 using System.Globalization;
 using TransitGtfsApi.Databases;
@@ -96,14 +97,18 @@ public class ShapesService : IShapesService
                         continue;
                     }
 
+                    double shapeLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture);
+                    double shapeLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture);
+
                     Shape entity = new Shape
                     {
                         Id = Guid.NewGuid().ToString(),
                         ShapeId = shapeId,
-                        ShapePtLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture),
-                        ShapePtLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture),
+                        ShapePtLat = shapeLat,
+                        ShapePtLon = shapeLon,
                         ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
                         ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
+                        Geom = Constant.GeometryFactory.CreatePoint(new Coordinate(shapeLon, shapeLat))
                     };
 
                     entities.Add(entity);

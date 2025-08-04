@@ -1,6 +1,6 @@
 namespace TransitGtfsApi.Models;
 
-public class Translation
+public class AgencyTranslation
 {
     public string Id { get; set; }
     public string TableName { get; set; }

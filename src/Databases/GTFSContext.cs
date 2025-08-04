@@ -19,7 +19,7 @@ public class GTFSContext : DbContext
     public DbSet<Transfer> Transfers { get; set; }
     public DbSet<Trip> Trips { get; set; }
     public DbSet<FeedInfo> FeedInfos { get; set; }
-    public DbSet<Translation> Translations { get; set; }
+    public DbSet<AgencyTranslation> Translations { get; set; }
     public DbSet<Attribution> Attributions { get; set; }
     public DbSet<StopArea> StopAreas { get; set; }
     public DbSet<FareMedia> FareMedias { get; set; }
@@ -42,7 +42,7 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<Transfer>().ToTable("gtfs_transfers");
         modelBuilder.Entity<Trip>().ToTable("gtfs_trips");
         modelBuilder.Entity<FeedInfo>().ToTable("gtfs_feed_info");
-        modelBuilder.Entity<Translation>().ToTable("gtfs_translations");
+        modelBuilder.Entity<AgencyTranslation>().ToTable("gtfs_translations");
         modelBuilder.Entity<Attribution>().ToTable("gtfs_attributions");
         modelBuilder.Entity<StopArea>().ToTable("gtfs_stop_areas");
         modelBuilder.Entity<FareMedia>().ToTable("gtfs_fare_media");
@@ -63,7 +63,7 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<Transfer>().HasKey(e => e.Id);
         modelBuilder.Entity<Trip>().HasKey(e => e.Id);
         modelBuilder.Entity<FeedInfo>().HasKey(e => e.Id);
-        modelBuilder.Entity<Translation>().HasKey(e => e.Id);
+        modelBuilder.Entity<AgencyTranslation>().HasKey(e => e.Id);
         modelBuilder.Entity<Attribution>().HasKey(e => e.Id);
         modelBuilder.Entity<StopArea>().HasKey(e => e.Id);
         modelBuilder.Entity<FareMedia>().HasKey(e => e.Id);
@@ -88,7 +88,7 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<Trip>().HasIndex(e => e.RouteId);
         modelBuilder.Entity<Trip>().HasIndex(e => e.ServiceId);
         modelBuilder.Entity<FeedInfo>().HasIndex(e => e.FeedPublisherName);
-        modelBuilder.Entity<Translation>().HasIndex(e => e.TableName);
+        modelBuilder.Entity<AgencyTranslation>().HasIndex(e => e.TableName);
         modelBuilder.Entity<Attribution>().HasIndex(e => e.OrganizationName);
         modelBuilder.Entity<StopArea>().HasIndex(e => e.StopAreaId);
         modelBuilder.Entity<FareMedia>().HasIndex(e => e.FareMediaId);

@@ -22,9 +22,9 @@ public class TranslationService : ITranslationService
         _redis = redis;
     }
 
-    public async Task<List<Translation>> GetAllAsync()
+    public async Task<List<AgencyTranslation>> GetAllAsync()
     {
-        return await _dbContext.Set<Translation>().ToListAsync();
+        return await _dbContext.Set<AgencyTranslation>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -47,10 +47,10 @@ public class TranslationService : ITranslationService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Set<Translation>().Select(t => t.TableName.ToLower() + ":" + t.FieldName.ToLower() + ":" + t.Language.ToLower() + ":" + (t.RecordId ?? "")).ToListAsync()
+                await _dbContext.Set<AgencyTranslation>().Select(t => t.TableName.ToLower() + ":" + t.FieldName.ToLower() + ":" + t.Language.ToLower() + ":" + (t.RecordId ?? "")).ToListAsync()
             );
 
-            List<Translation> entities = new List<Translation>(batchSize);
+            List<AgencyTranslation> entities = new List<AgencyTranslation>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
@@ -91,7 +91,7 @@ public class TranslationService : ITranslationService
                         continue;
                     }
 
-                    Translation entity = new Translation
+                    AgencyTranslation entity = new AgencyTranslation
                     {
                         Id = Guid.NewGuid().ToString(),
                         TableName = tableName,

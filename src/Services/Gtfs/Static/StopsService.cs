@@ -1,5 +1,6 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using System.Diagnostics;
 using System.Globalization;
 using TransitGtfsApi.Databases;
@@ -35,6 +36,16 @@ public class StopsService : IStopsService
             $"stop-{stopId}",
             async () => await _dbContext.Stops.FirstOrDefaultAsync(s => s.StopId == stopId)
         );
+    }
+
+    public async Task<Stop?> GetNearestStopAsync(double lat, double lon)
+    {
+        var point = new Point(lon, lat) { SRID = Constant.GeometryFactory.SRID };
+
+        return await _dbContext.Stops
+            .Where(s => s.Location != null)
+            .OrderBy(s => s.Location!.Distance(point))
+            .FirstOrDefaultAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -97,6 +108,9 @@ public class StopsService : IStopsService
                         continue;
                     }
 
+                    double stopLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("stop_lat", null), format: CultureInfo.InvariantCulture);
+                    double stopLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("stop_lon", null), format: CultureInfo.InvariantCulture);
+
                     Stop entity = new Stop
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -104,15 +118,16 @@ public class StopsService : IStopsService
                         StopCode = rowData.GetValueOrDefault("stop_code", null),
                         StopName = rowData.GetValueOrDefault("stop_name", "") ?? "",
                         StopDesc = rowData.GetValueOrDefault("stop_desc", null),
-                        StopLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("stop_lat", null), format: CultureInfo.InvariantCulture),
-                        StopLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("stop_lon", null), format: CultureInfo.InvariantCulture),
+                        StopLat = stopLat,
+                        StopLon = stopLon,
                         ZoneId = rowData.GetValueOrDefault("zone_id", "") ?? "",
                         StopUrl = rowData.GetValueOrDefault("stop_url", "") ?? "",
                         LocationType = EnumUtil.FromValue<LocationType>(NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("location_type", null))),
                         ParentStation = rowData.GetValueOrDefault("parent_station", null),
                         StopTimezone = rowData.GetValueOrDefault("stop_timezone", null),
                         WheelchairBoarding = EnumUtil.FromValue<AccessibilityType>(NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wheelchair_boarding", null))),
-                        PlatformCode = rowData.GetValueOrDefault("platform_code", null)
+                        PlatformCode = rowData.GetValueOrDefault("platform_code", null),
+                        Location = Constant.GeometryFactory.CreatePoint(new Coordinate(stopLon, stopLat))
                     };
 
                     entities.Add(entity);

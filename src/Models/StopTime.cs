@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using TransitGtfsApi.Enums;
+using TransitGtfsApi.Utils;
 
 namespace TransitGtfsApi.Models;
+
 public class StopTime
 {
     public string Id { get; set; }
@@ -46,12 +48,20 @@ public class StopTime
     {
         get
         {
-            if (!DelaySeconds.HasValue) return "No delay info";
+            if (!DelaySeconds.HasValue) return "Sem informação de atraso";
 
             var delay = DelaySeconds.Value;
-            if (delay == 0) return "On time";
-            if (delay > 0) return $"{delay / 60}m {delay % 60}s late";
-            return $"{Math.Abs(delay) / 60}m {Math.Abs(delay) % 60}s early";
+            if (delay == 0) return "A tempo";
+            if (delay > 0) return $"Atrasado {delay / 60}m {delay % 60}s";
+            return $"Adiantado {Math.Abs(delay) / 60}m {Math.Abs(delay) % 60}s";
         }
     }
+
+    [NotMapped]
+    public TimeSpan ArrivalTimeSpan =>
+        NumberUtil.ParseGtfsTime(ArrivalTime);
+
+    [NotMapped]
+    public TimeSpan DepartureTimeSpan =>
+        NumberUtil.ParseGtfsTime(DepartureTime);
 }

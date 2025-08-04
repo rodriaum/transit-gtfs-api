@@ -10,7 +10,7 @@ public interface IGtfsRealtimeCacheService
     string? GetPathByAgency(string agencyId, RealtimeType type);
 
     Task<List<Alert>?> GetAlertsAsync(
-        string agencyId,
+        string? agencyId = null,
         string? routeId = null,
         string? tripId = null,
         string? stopId = null,
@@ -21,7 +21,7 @@ public interface IGtfsRealtimeCacheService
         CancellationToken cancellationToken = default);
 
     Task<List<VehiclePosition>?> GetVehiclePositionsAsync(
-        string agencyId,
+        string? agencyId = null,
         string? stopId = null,
         string? tripId = null,
         string? routeId = null,
@@ -34,7 +34,7 @@ public interface IGtfsRealtimeCacheService
         CancellationToken cancellationToken = default);
 
     Task<List<TripUpdate>?> GetTripUpdatesAsync(
-        string agencyId,
+        string? agencyId = null,
         string? stopId = null,
         string? tripId = null,
         string? routeId = null,

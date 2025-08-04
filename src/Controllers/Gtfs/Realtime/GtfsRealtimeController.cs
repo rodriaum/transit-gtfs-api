@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TransitGtfsApi.DTOs;
 using TransitGtfsApi.Enums;
 using TransitGtfsApi.Interfaces.Gtfs.Realtime;
 using TransitGtfsApi.Models;
@@ -17,9 +18,9 @@ public class GtfsRealtimeController : ControllerBase
         _gtfsRealtimeService = gtfsRealtimeService;
     }
 
-    [HttpGet("vehicle-positions/{agencyId}")]
+    [HttpGet("vehicle-positions")]
     public async Task<ActionResult<List<VehiclePosition>>> GetVehiclePositionsByAgencyId(
-        string agencyId,
+        [FromQuery] string? agencyId = null,
         [FromQuery] string? stopId = null,
         [FromQuery] string? tripId = null,
         [FromQuery] string? routeId = null,
@@ -60,7 +61,7 @@ public class GtfsRealtimeController : ControllerBase
     }
 
     [HttpGet("trip-updates/{agencyId}")]
-    public async Task<ActionResult<List<TripUpdate>>> GetTripUpdatesByAgencyId(
+    public async Task<ActionResult<List<TripUpdateDto>>> GetTripUpdatesByAgencyId(
         string agencyId,
         [FromQuery] string? stopId = null,
         [FromQuery] string? tripId = null,
@@ -76,6 +77,7 @@ public class GtfsRealtimeController : ControllerBase
         if (result == null)
             return NotFound();
 
-        return result;
+        var dtoList = result.Select(x => new TripUpdateDto(x)).ToList();
+        return dtoList;
     }
 }

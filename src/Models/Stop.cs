@@ -1,4 +1,5 @@
 using NetTopologySuite.Geometries;
+using System.Text.Json.Serialization;
 using TransitGtfsApi.Enums;
 
 namespace TransitGtfsApi.Models;
@@ -20,5 +21,6 @@ public class Stop
     public AccessibilityType? WheelchairBoarding { get; set; }
     public string? PlatformCode { get; set; }
 
+    [JsonIgnore]
     public Point? Location { get; set; }
 }
