@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Text.RegularExpressions;
 
-namespace TransitGtfsApi.Filters;
+namespace Tranzor.Filters;
 
 public class SanitizeInputFilter : ActionFilterAttribute
 {

@@ -9,18 +9,18 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text.Json.Serialization;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Filters;
-using TransitGtfsApi.HealthChecks;
-using TransitGtfsApi.Interfaces.Database;
-using TransitGtfsApi.Interfaces.Gtfs;
-using TransitGtfsApi.Interfaces.Gtfs.Realtime;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Services.Gtfs;
-using TransitGtfsApi.Services.Gtfs.Realtime;
-using TransitGtfsApi.Services.Gtfs.Static;
+using Tranzor.Databases;
+using Tranzor.Filters;
+using Tranzor.HealthChecks;
+using Tranzor.Interfaces.Database;
+using Tranzor.Interfaces.Gtfs;
+using Tranzor.Interfaces.Gtfs.Realtime;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Services.Gtfs;
+using Tranzor.Services.Gtfs.Realtime;
+using Tranzor.Services.Gtfs.Static;
 
-namespace TransitGtfsApi;
+namespace Tranzor;
 
 public class Startup
 {

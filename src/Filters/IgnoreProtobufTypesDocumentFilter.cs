@@ -1,7 +1,7 @@
 ﻿using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-namespace TransitGtfsApi.Filters;
+namespace Tranzor.Filters;
 
 public class IgnoreProtobufTypesDocumentFilter : IDocumentFilter
 {

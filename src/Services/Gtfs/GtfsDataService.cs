@@ -1,10 +1,10 @@
 using System.Diagnostics;
-using TransitGtfsApi.Utils;
-using TransitGtfsApi.Interfaces.Gtfs;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Models;
+using Tranzor.Utils;
+using Tranzor.Interfaces.Gtfs;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Models;
 
-namespace TransitGtfsApi.Services.Gtfs;
+namespace Tranzor.Services.Gtfs;
 
 public class GtfsDataService : IGtfsDataService
 {

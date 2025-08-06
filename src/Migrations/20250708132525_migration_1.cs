@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace TransitGtfsApi.Migrations
+namespace Tranzor.Migrations
 {
     /// <inheritdoc />
     public partial class migration_1 : Migration

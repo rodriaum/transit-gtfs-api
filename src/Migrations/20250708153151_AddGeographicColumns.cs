@@ -3,7 +3,7 @@ using NetTopologySuite.Geometries;
 
 #nullable disable
 
-namespace TransitGtfsApi.Migrations
+namespace Tranzor.Migrations
 {
     /// <inheritdoc />
     public partial class AddGeographicColumns : Migration

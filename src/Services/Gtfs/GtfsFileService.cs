@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.IO.Compression;
-using TransitGtfsApi.Interfaces.Gtfs;
-using TransitGtfsApi.Models;
-using TransitGtfsApi.Utils;
+using Tranzor.Interfaces.Gtfs;
+using Tranzor.Models;
+using Tranzor.Utils;
 
-namespace TransitGtfsApi.Services.Gtfs;
+namespace Tranzor.Services.Gtfs;
 
 public class GtfsFileService : IGtfsFileService
 {

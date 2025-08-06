@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using TransitGtfsApi.Databases;
+using Tranzor.Databases;
 
 #nullable disable
 
-namespace TransitGtfsApi.Migrations
+namespace Tranzor.Migrations
 {
     [DbContext(typeof(GTFSContext))]
     [Migration("20250708132525_migration_1")]
@@ -24,7 +24,7 @@ namespace TransitGtfsApi.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Agency", b =>
+            modelBuilder.Entity("Tranzor.Models.Agency", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -76,7 +76,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_agencies", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Calendar", b =>
+            modelBuilder.Entity("Tranzor.Models.Calendar", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -134,7 +134,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_calendars", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.CalendarDate", b =>
+            modelBuilder.Entity("Tranzor.Models.CalendarDate", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -163,7 +163,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_calendar_dates", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.FareAttribute", b =>
+            modelBuilder.Entity("Tranzor.Models.FareAttribute", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -204,7 +204,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_fare_attributes", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.FareRule", b =>
+            modelBuilder.Entity("Tranzor.Models.FareRule", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -240,7 +240,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_fare_rules", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Route", b =>
+            modelBuilder.Entity("Tranzor.Models.Route", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -306,7 +306,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_routes", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Shape", b =>
+            modelBuilder.Entity("Tranzor.Models.Shape", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -342,7 +342,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_shapes", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Stop", b =>
+            modelBuilder.Entity("Tranzor.Models.Stop", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -413,7 +413,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_stops", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.StopTime", b =>
+            modelBuilder.Entity("Tranzor.Models.StopTime", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -475,7 +475,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_stop_times", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Transfer", b =>
+            modelBuilder.Entity("Tranzor.Models.Transfer", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")
@@ -511,7 +511,7 @@ namespace TransitGtfsApi.Migrations
                     b.ToTable("gtfs_transfers", (string)null);
                 });
 
-            modelBuilder.Entity("TransitGtfsApi.Models.Trip", b =>
+            modelBuilder.Entity("Tranzor.Models.Trip", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text")

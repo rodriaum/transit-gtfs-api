@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace TransitGtfsApi.Databases;
+namespace Tranzor.Databases;
 
 public class GTFSContextFactory : IDesignTimeDbContextFactory<GTFSContext>
 {

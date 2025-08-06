@@ -1,6 +1,6 @@
-# Transit GTFS - API
+# Tranzor - API
 
-Transit GTFS API (ASP.NET) permite consultar horários, paradas, viagens e próximas partidas de itinerários.
+Tranzor API (ASP.NET) permite consultar horários, paradas, viagens e próximas partidas de itinerários.
 
 <!--
 ## Docs
@@ -77,10 +77,10 @@ Esta API segue os padrões GTFS (General Transit Feed Specification), garantindo
 
 ## Informações Técnicas
 
-- **URL Base**: `/api/v1/transit/gtfs`
+- **URL Base**: `/api/v1/tranzor`
 - **Formatos Suportados**: JSON, Texto Simples
 - **Autenticação**: Não requerida para endpoints públicos
 - **Rate Limiting**: Recomenda-se uso responsável com implementação de cache local
 
 ## Licença
-[MIT License](https://github.com/rodriaum/transit-gtfs-api?tab=MIT-1-ov-file#MIT-1-ov-file)
+[MIT License](https://github.com/rodriaum/tranzor-api?tab=MIT-1-ov-file#MIT-1-ov-file)

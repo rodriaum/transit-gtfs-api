@@ -1,8 +1,8 @@
-using TransitGtfsApi.Models;
+using Tranzor.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace TransitGtfsApi.Interfaces.Gtfs.Static;
+namespace Tranzor.Interfaces.Gtfs.Static;
 
 public interface IFareMediaService
 {

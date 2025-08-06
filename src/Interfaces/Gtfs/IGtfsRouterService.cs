@@ -1,6 +1,6 @@
-﻿using TransitGtfsApi.Models.Router;
+﻿using Tranzor.Models.Router;
 
-namespace TransitGtfsApi.Interfaces.Gtfs;
+namespace Tranzor.Interfaces.Gtfs;
 
 public interface IGtfsRouterService
 {

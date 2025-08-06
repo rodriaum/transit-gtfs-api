@@ -1,6 +1,6 @@
-using TransitGtfsApi.Models;
+using Tranzor.Models;
 
-namespace TransitGtfsApi.Interfaces.Gtfs.Static;
+namespace Tranzor.Interfaces.Gtfs.Static;
 
 public interface IFareAttributesService
 {

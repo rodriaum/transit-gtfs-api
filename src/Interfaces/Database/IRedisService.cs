@@ -1,4 +1,4 @@
-﻿namespace TransitGtfsApi.Interfaces.Database;
+﻿namespace Tranzor.Interfaces.Database;
 
 public interface IRedisService
 {

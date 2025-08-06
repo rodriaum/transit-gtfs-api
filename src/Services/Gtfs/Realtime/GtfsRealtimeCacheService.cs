@@ -1,4 +1,4 @@
-namespace TransitGtfsApi.Services.Gtfs.Realtime;
+namespace Tranzor.Services.Gtfs.Realtime;
 
 using System;
 using System.Collections.Concurrent;
@@ -7,10 +7,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using TransitGtfsApi;
-using TransitGtfsApi.Enums;
-using TransitGtfsApi.Interfaces.Gtfs.Realtime;
-using TransitGtfsApi.Models;
+using Tranzor;
+using Tranzor.Enums;
+using Tranzor.Interfaces.Gtfs.Realtime;
+using Tranzor.Models;
 using TransitRealtime;
 
 public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService

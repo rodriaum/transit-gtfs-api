@@ -1,4 +1,4 @@
-namespace TransitGtfsApi.Models;
+namespace Tranzor.Models;
 
 public class Agency
 {

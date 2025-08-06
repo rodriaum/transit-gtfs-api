@@ -1,4 +1,4 @@
-namespace TransitGtfsApi.DTOs;
+namespace Tranzor.DTOs;
 
 public class TripUpdateDto
 {

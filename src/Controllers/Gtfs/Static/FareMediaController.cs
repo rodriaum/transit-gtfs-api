@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Models;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Models;
 
-namespace TransitGtfsApi.Controllers.Gtfs.Static;
+namespace Tranzor.Controllers.Gtfs.Static;
 
 [ApiController]
 [Route("api/gtfs/fare_media")]

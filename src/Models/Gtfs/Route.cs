@@ -1,6 +1,6 @@
-using TransitGtfsApi.Enums;
+using Tranzor.Enums;
 
-namespace TransitGtfsApi.Models;
+namespace Tranzor.Models;
 public class Route
 {
     public string Id { get; set; }

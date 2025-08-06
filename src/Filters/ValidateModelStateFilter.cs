@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace TransitGtfsApi.Filters;
+namespace Tranzor.Filters;
 
 public class ValidateModelStateFilter : ActionFilterAttribute
 {

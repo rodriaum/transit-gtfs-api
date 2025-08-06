@@ -1,6 +1,6 @@
 using NetTopologySuite.Geometries;
 
-namespace TransitGtfsApi.Models;
+namespace Tranzor.Models;
 
 public class Shape
 {

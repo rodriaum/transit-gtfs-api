@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using TransitGtfsApi.Models;
+using Tranzor.Models;
 
-namespace TransitGtfsApi.Databases;
+namespace Tranzor.Databases;
 
 public class GTFSContext : DbContext
 {

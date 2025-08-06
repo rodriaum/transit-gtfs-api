@@ -1,6 +1,6 @@
 using Serilog;
 
-namespace TransitGtfsApi;
+namespace Tranzor;
 
 public class Program
 {

@@ -1,13 +1,13 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Interfaces.Database;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Models;
-using TransitGtfsApi.Utils;
+using Tranzor.Databases;
+using Tranzor.Interfaces.Database;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Models;
+using Tranzor.Utils;
 
-namespace TransitGtfsApi.Services.Gtfs.Static;
+namespace Tranzor.Services.Gtfs.Static;
 
 public class FareMediaService : IFareMediaService
 {

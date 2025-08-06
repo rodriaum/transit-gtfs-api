@@ -3,14 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System.Diagnostics;
 using System.Globalization;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Enums;
-using TransitGtfsApi.Interfaces.Database;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Models;
-using TransitGtfsApi.Utils;
+using Tranzor.Databases;
+using Tranzor.Enums;
+using Tranzor.Interfaces.Database;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Models;
+using Tranzor.Utils;
 
-namespace TransitGtfsApi.Services.Gtfs.Static;
+namespace Tranzor.Services.Gtfs.Static;
 
 public class StopsService : IStopsService
 {

@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Caching.Distributed;
-using TransitGtfsApi.Interfaces.Database;
-using TransitGtfsApi.Utils;
+using Tranzor.Interfaces.Database;
+using Tranzor.Utils;
 
-namespace TransitGtfsApi.Databases
+namespace Tranzor.Databases
 {
     public class RedisService : IRedisService
     {

@@ -4,22 +4,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>TransitGtfsApi</RootNamespace>
+    <RootNamespace>Tranzor</RootNamespace>
     <UserSecretsId>4406a134-5278-4a4e-a9b3-233e6ebcf4a2</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>.</DockerfileContext>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Services\Database\**" />
-    <Content Remove="Services\Database\**" />
-    <EmbeddedResource Remove="Services\Database\**" />
-    <None Remove="Services\Database\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="DTOs\StopDto.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />

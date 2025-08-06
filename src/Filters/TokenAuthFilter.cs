@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Primitives;
 using Serilog;
 
-namespace TransitGtfsApi.Filters;
+namespace Tranzor.Filters;
 
 public class TokenAuthFilter : IAsyncActionFilter
 {

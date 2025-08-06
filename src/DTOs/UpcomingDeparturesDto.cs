@@ -1,6 +1,6 @@
-using TransitGtfsApi.Models;
+using Tranzor.Models;
 
-namespace TransitGtfsApi.DTOs;
+namespace Tranzor.DTOs;
 
 public class UpcomingDeparturesDto
 {

@@ -1,9 +1,8 @@
 ﻿using NetTopologySuite;
 using NetTopologySuite.Geometries;
-using TransitGtfsApi.Enums;
-using TransitGtfsApi.Models;
+using Tranzor.Models;
 
-namespace TransitGtfsApi;
+namespace Tranzor;
 
 public class Constant
 {
@@ -51,7 +50,7 @@ public class Constant
     public static string ExtractPathRealtime => Path.Combine(RootPath, "GtfsData", "Realtime");
     public static string TempDownloadFolder => Path.Combine(RootPath, "TempGtfs");
 
-    public const string Name = "Transit GTFS";
+    public const string Name = "Tranzor";
     public const string Version = "1.0.0";
 
     public const string ModeWalkingKey = "walking";

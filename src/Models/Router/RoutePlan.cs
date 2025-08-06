@@ -1,4 +1,4 @@
-﻿namespace TransitGtfsApi.Models.Router;
+﻿namespace Tranzor.Models.Router;
 
 public class RoutePlan
 {

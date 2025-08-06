@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using TransitGtfsApi.DTOs;
-using TransitGtfsApi.Enums;
-using TransitGtfsApi.Interfaces.Gtfs.Realtime;
-using TransitGtfsApi.Models;
+using Tranzor.DTOs;
+using Tranzor.Enums;
+using Tranzor.Interfaces.Gtfs.Realtime;
+using Tranzor.Models;
 using TransitRealtime;
 
-namespace TransitGtfsApi.Controllers.Gtfs;
+namespace Tranzor.Controllers.Gtfs;
 
 [ApiController]
 [Route("api/v1/transit/gtfs")]

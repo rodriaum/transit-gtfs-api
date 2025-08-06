@@ -1,7 +1,7 @@
-using TransitGtfsApi.Models;
+using Tranzor.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace TransitGtfsApi.Interfaces.Gtfs.Static;
+namespace Tranzor.Interfaces.Gtfs.Static;
 
 public interface ITripsService
 {

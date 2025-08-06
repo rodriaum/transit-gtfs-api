@@ -1,14 +1,14 @@
-﻿namespace TransitGtfsApi.Services.Gtfs;
+﻿namespace Tranzor.Services.Gtfs;
 
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
-using TransitGtfsApi.Databases;
-using TransitGtfsApi.Enums;
-using TransitGtfsApi.Interfaces.Gtfs;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Models;
-using TransitGtfsApi.Models.Router;
-using TransitGtfsApi.Utils;
+using Tranzor.Databases;
+using Tranzor.Enums;
+using Tranzor.Interfaces.Gtfs;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Models;
+using Tranzor.Models.Router;
+using Tranzor.Utils;
 
 public class GtfsRouterService : IGtfsRouterService
 {

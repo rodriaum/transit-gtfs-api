@@ -1,4 +1,4 @@
-﻿namespace TransitGtfsApi.Utils;
+﻿namespace Tranzor.Utils;
 
 using System;
 

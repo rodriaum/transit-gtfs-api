@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using TransitGtfsApi.Enums;
-using TransitGtfsApi.Utils;
+using Tranzor.Enums;
+using Tranzor.Utils;
 
-namespace TransitGtfsApi.Models;
+namespace Tranzor.Models;
 
 public class StopTime
 {

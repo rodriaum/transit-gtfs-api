@@ -1,9 +1,9 @@
 using NetTopologySuite.Geometries;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using TransitGtfsApi.Enums;
+using Tranzor.Enums;
 
-namespace TransitGtfsApi.Models;
+namespace Tranzor.Models;
 
 public class Stop
 {

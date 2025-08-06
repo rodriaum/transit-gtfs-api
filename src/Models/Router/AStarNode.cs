@@ -1,6 +1,6 @@
-﻿using TransitGtfsApi.Services.Gtfs;
+﻿using Tranzor.Services.Gtfs;
 
-namespace TransitGtfsApi.Models.Router;
+namespace Tranzor.Models.Router;
 
 public class AStarNode
 {

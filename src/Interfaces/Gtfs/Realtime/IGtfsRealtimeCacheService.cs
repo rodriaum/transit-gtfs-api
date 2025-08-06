@@ -1,7 +1,7 @@
-﻿using TransitGtfsApi.Enums;
+﻿using Tranzor.Enums;
 using TransitRealtime;
 
-namespace TransitGtfsApi.Interfaces.Gtfs.Realtime;
+namespace Tranzor.Interfaces.Gtfs.Realtime;
 
 
 public interface IGtfsRealtimeCacheService

@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
-using TransitGtfsApi.DTOs;
-using TransitGtfsApi.Interfaces.Gtfs;
-using TransitGtfsApi.Interfaces.Gtfs.Realtime;
-using TransitGtfsApi.Interfaces.Gtfs.Static;
-using TransitGtfsApi.Models;
-using TransitGtfsApi.Models.Router;
-using TransitGtfsApi.Services.Gtfs;
-using TransitGtfsApi.Services.Gtfs.Static;
-using TransitGtfsApi.Utils;
+using Tranzor.DTOs;
+using Tranzor.Interfaces.Gtfs;
+using Tranzor.Interfaces.Gtfs.Realtime;
+using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Models;
+using Tranzor.Models.Router;
+using Tranzor.Services.Gtfs;
+using Tranzor.Services.Gtfs.Static;
+using Tranzor.Utils;
 
-namespace TransitGtfsApi.Controllers.Gtfs;
+namespace Tranzor.Controllers.Gtfs;
 
 [ApiController]
 [Route("api/v1/transit/gtfs")]
