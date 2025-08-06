@@ -1,4 +1,4 @@
-﻿namespace TransitGtfsApi.Enums;
+﻿namespace Tranzor.Enums;
 
 public enum PaymentMethodType
 {

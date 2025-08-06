@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace TransitGtfsApi.HealthChecks;
+namespace Tranzor.HealthChecks;
 
 public class SecurityHealthCheck : IHealthCheck
 {

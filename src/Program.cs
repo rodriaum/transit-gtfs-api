@@ -1,14 +1,23 @@
 using Serilog;
 
-namespace TransitGtfsApi;
+namespace Tranzor;
 
 public class Program
 {
     public static void Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .CreateBootstrapLogger();
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Information()
+        .WriteTo.Console()
+        .WriteTo.File(
+            path: $"../logs/log-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            rollingInterval: RollingInterval.Infinite,
+            retainedFileCountLimit: 10
+        )
+        .CreateLogger();
+
 
         try
         {

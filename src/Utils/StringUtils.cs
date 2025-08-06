@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace TransitGtfsApi.Utils;
+namespace Tranzor.Utils;
 
 public class StringUtils
 {

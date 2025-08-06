@@ -7,7 +7,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace TransitGtfsApi.Utils;
+namespace Tranzor.Utils;
 
 public class JsonUtil
 {
