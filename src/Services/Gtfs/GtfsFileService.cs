@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using Tranzor.Context;
 using Tranzor.Interfaces.Gtfs;
-using Tranzor.Models;
+using Tranzor.Models.Config;
 using Tranzor.Utils;
 
 namespace Tranzor.Services.Gtfs;
@@ -27,15 +28,15 @@ public class GtfsFileService : IGtfsFileService
             Directory.CreateDirectory(Constant.ExtractPath);
         }
 
-        if (Constant.GtfsDataList.Count == 0)
+        if (GtfsDataContext.GtfsDataList.Count == 0)
         {
             _logger.LogWarning("No GTFS URLs configured. Please configure at least one URL in Constant.GtfsFileUrls.");
             return gtfsDirectories;
         }
 
-        for (int i = 0; i < Constant.GtfsDataList.Count; i++)
+        for (int i = 0; i < GtfsDataContext.GtfsDataList.Count; i++)
         {
-            GtfsData gtfsData = Constant.GtfsDataList[i];
+            GtfsData gtfsData = GtfsDataContext.GtfsDataList[i];
 
             string gtfsUrl = gtfsData.Url;
             string providerFolderName = gtfsData.AgencyId;

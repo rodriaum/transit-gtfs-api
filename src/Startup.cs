@@ -4,18 +4,20 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text.Json.Serialization;
+using Tranzor.Context;
 using Tranzor.Databases;
 using Tranzor.Filters;
 using Tranzor.HealthChecks;
+using Tranzor.Interfaces.Config;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Services.Config;
 using Tranzor.Services.Gtfs;
 using Tranzor.Services.Gtfs.Realtime;
 using Tranzor.Services.Gtfs.Static;
@@ -261,6 +263,7 @@ public class Startup
         services.AddScoped<IStopTimesService, StopTimesService>();
         services.AddScoped<ITransfersService, TransfersService>();
         services.AddScoped<ITripsService, TripsService>();
+        services.AddScoped<IConfigService, ConfigService>();
         services.AddScoped<IGtfsDataService, GtfsDataService>();
         services.AddScoped<IFeedInfoService, FeedInfoService>();
         services.AddSingleton<IGtfsFileService, GtfsFileService>();
@@ -340,15 +343,21 @@ public class Startup
             endpoints.MapHealthChecks("/health");
         });
 
-        InitializeDatabase(serviceProvider, logger);
+        InitializeSystem(serviceProvider, logger);
     }
 
-    private void InitializeDatabase(IServiceProvider serviceProvider, ILogger<Startup> logger)
+    private void InitializeSystem(IServiceProvider serviceProvider, ILogger<Startup> logger)
     {
+        IConfigService configService = serviceProvider.GetRequiredService<IConfigService>();
         IGtfsDataService gtfsDataService = serviceProvider.GetRequiredService<IGtfsDataService>();
 
         try
         {
+            configService.InitializeAsync().Wait();
+
+            if (!GtfsDataContext.Finish)
+                Environment.Exit(0);
+
             gtfsDataService.InitializeAsync().Wait();
         }
         catch (Exception ex)

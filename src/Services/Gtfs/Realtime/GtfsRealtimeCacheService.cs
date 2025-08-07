@@ -7,11 +7,12 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using TransitRealtime;
 using Tranzor;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Gtfs.Realtime;
-using Tranzor.Models;
-using TransitRealtime;
+using Tranzor.Models.Config;
 
 public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 {
@@ -93,7 +94,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         }
         else
         {
-            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
                 FeedMessage? message = await GetFeedAsync(
                     GetPathByAgency(gtfsData.AgencyId, RealtimeType.ServiceAlerts) ?? "",
@@ -193,7 +194,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         }
         else
         {
-            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
                 FeedMessage? message = await GetFeedAsync(
                     GetPathByAgency(gtfsData.AgencyId, RealtimeType.VehiclePositions) ?? "",
@@ -294,7 +295,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         }
         else
         {
-            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
                 FeedMessage? message = await GetFeedAsync(
                     GetPathByAgency(gtfsData.AgencyId, RealtimeType.TripUpdates) ?? "",
@@ -358,7 +359,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
     }
 
     public string? GetPathByAgency(string agencyId, RealtimeType type) =>
-        Constant.GtfsDataList
+        GtfsDataContext.GtfsDataList
             .Where(data => data.AgencyId == agencyId)
             .Select(data => data.RealtimeUrls?.GetValueOrDefault(type))
             .FirstOrDefault();
