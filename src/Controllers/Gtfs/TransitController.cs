@@ -21,6 +21,8 @@ public class TransitController : ControllerBase
     private readonly IStopsService _stopsService;
     private readonly IGtfsRealtimeCacheService _gtfsRealtimeService;
     private readonly IGtfsRouterService _routerService;
+    private readonly ICalendarDatesService _calendarDatesService;
+    private readonly ICalendarService _calendarService;
     private readonly ILogger<TransitController> _logger;
 
     public TransitController(
@@ -30,6 +32,8 @@ public class TransitController : ControllerBase
         IStopsService stopsService,
         IGtfsRealtimeCacheService gtfsRealtimeService,
         IGtfsRouterService routerService,
+        ICalendarDatesService calendarDatesService,
+        ICalendarService calendarService,
         ILogger<TransitController> logger)
     {
         _routesService = routesService;
@@ -38,6 +42,8 @@ public class TransitController : ControllerBase
         _stopsService = stopsService;
         _gtfsRealtimeService = gtfsRealtimeService;
         _routerService = routerService;
+        _calendarDatesService = calendarDatesService;
+        _calendarService = calendarService;
         _logger = logger;
     }
 
@@ -167,12 +173,8 @@ public class TransitController : ControllerBase
 
             List<UpcomingDeparturesDto> result = new();
 
-            int line = 0;
-
             foreach (StopTime departure in upcomingDepartures)
             {
-                line++;
-                _logger.LogWarning("in line {Line}", line);
                 bool hasRealtime = false;
 
                 // (1) Use TripUpdate if available

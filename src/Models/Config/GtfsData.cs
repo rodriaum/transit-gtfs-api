@@ -15,9 +15,9 @@ public class GtfsData
     public List<string> IgnoredFiles { get; set; } = new List<string>();
 
     [JsonPropertyName("realtime_urls")]
-    public Dictionary<RealtimeType, string>? RealtimeUrls { get; set; }
+    public Dictionary<RealtimeType, GtfsDataRealtime>? RealtimeUrls { get; set; }
 
-    public GtfsData(string agencyId, string url, List<string>? ignoredFiles = null, Dictionary<RealtimeType, string>? realtimeUrls = null)
+    public GtfsData(string agencyId, string url, List<string>? ignoredFiles = null, Dictionary<RealtimeType, GtfsDataRealtime>? realtimeUrls = null)
     {
         AgencyId = agencyId.ToLower();
         Url = url;

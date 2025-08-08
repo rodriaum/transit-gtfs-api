@@ -66,4 +66,33 @@ public static class TimeFormatUtil
 
         return result;
     }
+
+    public static TimeSpan ParseGtfsTime(string timeString)
+    {
+        string[] parts = timeString.Split(':');
+
+        if (parts.Length != 3 ||
+            !int.TryParse(parts[0], out int hours) ||
+            !int.TryParse(parts[1], out int minutes) ||
+            !int.TryParse(parts[2], out int seconds))
+        {
+            return TimeSpan.Zero;
+        }
+
+        return new TimeSpan(hours, minutes, seconds);
+    }
+
+    public static DateTime ParseGtfsDate(string dateString)
+    {
+        if (dateString.Length != 8)
+        {
+            return DateTime.MinValue;
+        }
+
+        int year = int.Parse(dateString.Substring(0, 4));
+        int month = int.Parse(dateString.Substring(4, 2));
+        int day = int.Parse(dateString.Substring(6, 2));
+
+        return new DateTime(year, month, day);
+    }
 }

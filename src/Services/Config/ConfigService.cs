@@ -26,18 +26,20 @@ public class ConfigService : IConfigService
             if (isConfigFileIntegrity)
             {
                 ConfigData? loadedConfig = await JsonUtil.JsonFileToObjectAsync<ConfigData>(configFilePath);
+
                 if (loadedConfig != null)
                 {
                     config = loadedConfig;
+                }
+            }
 
-                    if (isGtfsDataFileIntegrity && config.DownloadData)
-                    {
-                        List<GtfsData>? gtfsDataList = await JsonUtil.JsonFileToObjectAsync<List<GtfsData>>(gtfsDataFilePath);
-                        if (gtfsDataList != null)
-                        {
-                            GtfsDataContext.GtfsDataList = gtfsDataList;
-                        }
-                    }
+            if (isGtfsDataFileIntegrity)
+            {
+                List<GtfsData>? gtfsDataList = await JsonUtil.JsonFileToObjectAsync<List<GtfsData>>(gtfsDataFilePath);
+
+                if (gtfsDataList != null)
+                {
+                    GtfsDataContext.GtfsDataList = gtfsDataList;
                 }
             }
 

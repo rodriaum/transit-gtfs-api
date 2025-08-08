@@ -127,7 +127,7 @@ public class GtfsRouterService : IGtfsRouterService
             {
                 if (!stopTimesCache.TryGetValue(tripId, out List<StopTime>? stopTimes))
                 {
-                    stopTimes = await _stopTimesService.GetStopTimesForTrip(tripId);
+                    stopTimes = await _stopTimesService.GetByTripIdAsync(tripId);
                     stopTimesCache[tripId] = stopTimes;
                 }
 

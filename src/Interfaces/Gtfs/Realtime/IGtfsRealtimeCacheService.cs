@@ -1,13 +1,14 @@
-﻿using Tranzor.Enums;
-using TransitRealtime;
+﻿using TransitRealtime;
+using Tranzor.Enums;
+using Tranzor.Models.Config;
 
 namespace Tranzor.Interfaces.Gtfs.Realtime;
 
 
 public interface IGtfsRealtimeCacheService
 {
-    Task<FeedMessage?> GetFeedAsync(string url, string cacheFileName, CancellationToken cancellationToken = default);
-    string? GetPathByAgency(string agencyId, RealtimeType type);
+    Task<FeedMessage?> GetFeedAsync(GtfsDataRealtime gtfsDataRealtime, string cacheFileName, CancellationToken cancellationToken = default);
+    GtfsDataRealtime? GetGtfsDataRealtimeByAgency(string agencyId, RealtimeType type);
 
     Task<List<Alert>?> GetAlertsAsync(
         string? agencyId = null,

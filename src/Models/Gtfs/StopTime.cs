@@ -59,9 +59,9 @@ public class StopTime
 
     [NotMapped]
     public TimeSpan ArrivalTimeSpan =>
-        NumberUtil.ParseGtfsTime(ArrivalTime);
+        TimeFormatUtil.ParseGtfsTime(ArrivalTime);
 
     [NotMapped]
     public TimeSpan DepartureTimeSpan =>
-        NumberUtil.ParseGtfsTime(DepartureTime);
+        TimeFormatUtil.ParseGtfsTime(DepartureTime);
 }
