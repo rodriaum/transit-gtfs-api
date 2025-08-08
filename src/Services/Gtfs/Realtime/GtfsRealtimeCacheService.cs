@@ -7,11 +7,14 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using TransitRealtime;
 using Tranzor;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Gtfs.Realtime;
-using Tranzor.Models;
-using TransitRealtime;
+using Tranzor.Models.Config;
+using Tranzor.Models.Fiware;
+using Tranzor.Utils;
 
 public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 {
@@ -27,9 +30,15 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         _logger = logger;
     }
 
-    public async Task<FeedMessage?> GetFeedAsync(string url, string cacheKey, CancellationToken cancellationToken = default)
+    public async Task<FeedMessage?> GetFeedAsync(GtfsDataRealtime gtfsData, string cacheKey, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(url)) return null;
+        if (gtfsData == null) return null;
+
+        string? url = gtfsData.Path;
+        if (string.IsNullOrEmpty(gtfsData.Path)) return null;
+
+        RealtimeFileType? fileType = gtfsData.RealtimeFileType;
+        if (fileType == null) return null;
 
         if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
             return cached.feed;
@@ -45,10 +54,30 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
             HttpResponseMessage response = await _httpClient.GetAsync(url, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            FeedMessage feed = FeedMessage.Parser.ParseFrom(data);
 
-            _cache[cacheKey] = (feed, DateTime.UtcNow);
+
+            FeedMessage? feed = null;
+
+            switch (fileType)
+            {
+                case RealtimeFileType.ProtocolBuffer:
+                    byte[] bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                    feed = FeedMessage.Parser.ParseFrom(bytes);
+                    break;
+
+                case RealtimeFileType.FiwareJson:
+                    List<FiwareVehicle>? vehicles = await response.Content.ReadFromJsonAsync<List<FiwareVehicle>>(cancellationToken);
+
+                    if (vehicles != null && vehicles.Any())
+                        feed = ConverterUtil.ConvertToGtfsRealtimeFeed(vehicles);
+                    break;
+            }
+
+            if (feed != null)
+            {
+                _cache[cacheKey] = (feed, DateTime.UtcNow);
+            }
+
             return feed;
         }
         catch (Exception ex)
@@ -82,8 +111,8 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         if (agencyId != null)
         {
             FeedMessage? message = await GetFeedAsync(
-                GetPathByAgency(agencyId, RealtimeType.ServiceAlerts) ?? "",
-                $"alerts_{agencyId}.pb",
+                GetGtfsDataRealtimeByAgency(agencyId, RealtimeType.ServiceAlerts),
+                $"alerts_{agencyId}",
                 cancellationToken
             );
             if (message != null)
@@ -93,11 +122,11 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         }
         else
         {
-            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
                 FeedMessage? message = await GetFeedAsync(
-                    GetPathByAgency(gtfsData.AgencyId, RealtimeType.ServiceAlerts) ?? "",
-                    $"alerts_{gtfsData.AgencyId}.pb",
+                    GetGtfsDataRealtimeByAgency(gtfsData.AgencyId, RealtimeType.ServiceAlerts),
+                    $"alerts_{gtfsData.AgencyId}",
                     cancellationToken
                 );
 
@@ -182,8 +211,8 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         if (agencyId != null)
         {
             FeedMessage? message = await GetFeedAsync(
-                GetPathByAgency(agencyId, RealtimeType.VehiclePositions) ?? "",
-                $"vehicle_positions_{agencyId}.pb",
+                GetGtfsDataRealtimeByAgency(agencyId, RealtimeType.VehiclePositions),
+                $"vehicle_positions_{agencyId}",
                 cancellationToken
             );
             if (message != null)
@@ -193,11 +222,11 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         }
         else
         {
-            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
                 FeedMessage? message = await GetFeedAsync(
-                    GetPathByAgency(gtfsData.AgencyId, RealtimeType.VehiclePositions) ?? "",
-                    $"vehicle_positions_{gtfsData.AgencyId}.pb",
+                    GetGtfsDataRealtimeByAgency(gtfsData.AgencyId, RealtimeType.VehiclePositions),
+                    $"vehicle_positions_{gtfsData.AgencyId}",
                     cancellationToken
                 );
 
@@ -283,8 +312,8 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         if (agencyId != null)
         {
             FeedMessage? message = await GetFeedAsync(
-                GetPathByAgency(agencyId, RealtimeType.TripUpdates) ?? "",
-                $"trip_updates_{agencyId}.pb",
+                GetGtfsDataRealtimeByAgency(agencyId, RealtimeType.TripUpdates),
+                $"trip_updates_{agencyId}",
                 cancellationToken
             );
             if (message != null)
@@ -294,11 +323,11 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         }
         else
         {
-            foreach (GtfsData gtfsData in Constant.GtfsDataList)
+            foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
                 FeedMessage? message = await GetFeedAsync(
-                    GetPathByAgency(gtfsData.AgencyId, RealtimeType.TripUpdates) ?? "",
-                    $"trip_updates_{gtfsData.AgencyId}.pb",
+                    GetGtfsDataRealtimeByAgency(gtfsData.AgencyId, RealtimeType.TripUpdates),
+                    $"trip_updates_{gtfsData.AgencyId}",
                     cancellationToken
                 );
 
@@ -357,9 +386,19 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         return result;
     }
 
-    public string? GetPathByAgency(string agencyId, RealtimeType type) =>
-        Constant.GtfsDataList
-            .Where(data => data.AgencyId == agencyId)
-            .Select(data => data.RealtimeUrls?.GetValueOrDefault(type))
-            .FirstOrDefault();
+    public GtfsDataRealtime? GetGtfsDataRealtimeByAgency(string agencyId, RealtimeType type)
+    {
+        foreach (GtfsData data in GtfsDataContext.GtfsDataList)
+        {
+            if (data.AgencyId != agencyId.ToLower()) continue;
+
+            var realtimeUrls = data.RealtimeUrls;
+            if (realtimeUrls == null) continue;
+
+            if (realtimeUrls.TryGetValue(type, out var value))
+                return value;
+        }
+
+        return null;
+    }
 }

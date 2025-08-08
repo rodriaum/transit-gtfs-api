@@ -1,5 +1,6 @@
 ﻿using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using Tranzor.Databases;
@@ -31,67 +32,95 @@ public class StopTimesService : IStopTimesService
         _realtimeService = realtimeService;
     }
 
+    private IQueryable<string> GetActiveServiceIds(DateTime date)
+    {
+        DateOnly dateOnly = DateOnly.FromDateTime(date);
+        string dayOfWeek = date.DayOfWeek.ToString().ToLower();
+        string dayColumn = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
+
+        string sqlDate = date.ToString("yyyy-MM-dd");
+
+        IQueryable<string> calendarQuery = _dbContext.Calendars
+            .Where(c => EF.Functions.ToDate(EF.Property<string>(c, "StartDate"), "YYYYMMDD") <= dateOnly &&
+                        EF.Functions.ToDate(EF.Property<string>(c, "EndDate"), "YYYYMMDD") >= dateOnly &&
+                        EF.Property<int>(c, dayColumn) == (int)StatusType.Active)
+            .Select(c => c.ServiceId);
+
+        return calendarQuery
+            .Union(_dbContext.CalendarDates
+                .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
+                .Select(cd => cd.ServiceId))
+            .Except(_dbContext.CalendarDates
+                .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
+                .Select(cd => cd.ServiceId));
+    }
+
     public async Task<List<StopTime>> GetAllAsync(int page = 1, int pageSize = 100)
     {
         int skip = (page - 1) * pageSize;
         return await _dbContext.StopTimes.Skip(skip).Take(pageSize).ToListAsync();
     }
 
-    public async Task<List<StopTime>?> GetByTripIdAsync(string tripId, bool realtime = false)
+    public async Task<List<StopTime>?> GetByTripIdAsync(string tripId, bool ignoreCalendar = false)
     {
-        var stopTimes = await _redis.GetOrSetAsync(
-            $"stop-times-trip-{tripId}",
-            async () => await _dbContext.StopTimes
-                .Where(st => st.TripId == tripId)
-                .OrderBy(st => st.StopSequence)
-                .ToListAsync()
-        );
+        DateTime date = DateTime.Now;
 
-        if (!realtime || stopTimes == null || !stopTimes.Any())
-            return stopTimes;
+        string keySource = $"stop-times-trip-{tripId}-{ignoreCalendar}-{date.ToString("yyyyMMdd")}";
+        string cacheKey = StringUtils.GenerateHash(keySource);
 
-        return stopTimes;
-    }
-
-    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int page = 1, int pageSize = 100)
-    {
-        List<StopTime> stopTimes = await _redis.GetOrSetAsync(
-            $"stop-times-stop-{stopId}-{page}-{pageSize}",
+        return await _redis.GetOrSetAsync(
+            cacheKey,
             async () =>
             {
-                var skip = (page - 1) * pageSize;
-                return await _dbContext.StopTimes
-                    .Where(st => st.StopId == stopId)
+                IQueryable<StopTime> query = _dbContext.StopTimes.Where(st => st.TripId == tripId);
+
+                if (!ignoreCalendar)
+                {
+                    IQueryable<string> activeServiceIds = GetActiveServiceIds(date);
+
+                    query = from st in query
+                            join trip in _dbContext.Trips on st.TripId equals trip.TripId
+                            where activeServiceIds.Contains(trip.ServiceId)
+                            select st;
+                }
+
+                return await query
+                    .OrderBy(st => st.StopSequence)
+                    .ToListAsync();
+            }
+        );
+    }
+
+    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int page = 1, int pageSize = 100, bool ignoreCalendar = false)
+    {
+        DateTime date = DateTime.Now;
+
+        string keySource = $"stop-times-stop-{stopId}-{page}-{pageSize}-{ignoreCalendar}-{date.ToString("yyyyMMdd")}";
+        string cacheKey = StringUtils.GenerateHash(keySource);
+
+        return await _redis.GetOrSetAsync(
+            cacheKey,
+            async () =>
+            {
+                IQueryable<StopTime> query = _dbContext.StopTimes.Where(st => st.StopId == stopId);
+
+                if (!ignoreCalendar)
+                {
+                    IQueryable<string> activeServiceIds = GetActiveServiceIds(date);
+
+                    query = from st in query
+                            join trip in _dbContext.Trips on st.TripId equals trip.TripId
+                            where activeServiceIds.Contains(trip.ServiceId)
+                            select st;
+                }
+
+                return await query
                     .OrderBy(st => st.ArrivalTime)
-                    .Skip(skip)
+                    .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
             }
         ) ?? new List<StopTime>();
-
-        if (!stopTimes.Any())
-            return stopTimes;
-
-        return stopTimes;
-    }
-
-    public async Task<List<StopTime>> GetStopTimesForTrip(string tripId)
-    {
-        List<StopTime> stopTimes = await _redis.GetOrSetAsync(
-            $"stop-times-trip-{tripId}",
-            async () =>
-            {
-                return await _dbContext.StopTimes
-                    .Where(s => s.TripId == tripId)
-                    .OrderBy(s => s.StopSequence)
-                    .ToListAsync();
-            }
-        ) ?? new List<StopTime>();
-
-        if (!stopTimes.Any())
-            return stopTimes;
-
-        return stopTimes;
     }
 
     public async Task ImportDataAsync(string directoryPath)

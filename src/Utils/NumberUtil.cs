@@ -45,20 +45,4 @@ public class NumberUtil
     {
         return !double.IsInfinity(n) && !double.IsNaN(n);
     }
-
-    public static TimeSpan ParseGtfsTime(string timeString)
-    {
-        string[] parts = timeString.Split(':');
-
-        if (parts.Length != 3 ||
-            !int.TryParse(parts[0], out int hours) ||
-            !int.TryParse(parts[1], out int minutes) ||
-            !int.TryParse(parts[2], out int seconds))
-        {
-            throw new FormatException("Hora em formato inválido. Esperado: HH:mm:ss");
-        }
-
-        return new TimeSpan(hours, minutes, seconds);
-    }
-
 }

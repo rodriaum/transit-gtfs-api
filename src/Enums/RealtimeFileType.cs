@@ -3,9 +3,8 @@
 namespace Tranzor.Enums;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum RealtimeType
+public enum RealtimeFileType
 {
-    ServiceAlerts,
-    VehiclePositions,
-    TripUpdates
+    ProtocolBuffer,
+    FiwareJson
 }

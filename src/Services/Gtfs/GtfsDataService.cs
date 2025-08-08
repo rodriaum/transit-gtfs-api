@@ -1,8 +1,12 @@
+using DotNetEnv;
+using Serilog;
 using System.Diagnostics;
-using Tranzor.Utils;
+using Tranzor.Context;
 using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
+using Tranzor.Models.Config;
+using Tranzor.Utils;
 
 namespace Tranzor.Services.Gtfs;
 
@@ -91,6 +95,12 @@ public class GtfsDataService : IGtfsDataService
 
     public async Task LoadDataFromFilesAsync()
     {
+        if (!GtfsDataContext.Config.DownloadData)
+        {
+            _logger.LogInformation("Import option is false, nothing will be imported.");
+            return;
+        }
+
         Stopwatch stopwatch = Stopwatch.StartNew();
 
         try
@@ -112,7 +122,7 @@ public class GtfsDataService : IGtfsDataService
                 string gtfsDirectoryPath = gtfsDirectories[i];
                 string agencyIdByPath = gtfsDirectoryPath.Split(Path.DirectorySeparatorChar.ToString()).Last();
 
-                GtfsData? gtfsData = Constant.GtfsDataList.Find(it => string.Equals(it.AgencyId, agencyIdByPath, StringComparison.OrdinalIgnoreCase));
+                GtfsData? gtfsData = GtfsDataContext.GtfsDataList.Find(it => string.Equals(it.AgencyId, agencyIdByPath, StringComparison.OrdinalIgnoreCase));
 
                 if (gtfsData == null)
                 {
