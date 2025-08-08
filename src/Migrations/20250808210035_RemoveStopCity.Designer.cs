@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Tranzor.Databases;
 namespace Tranzor.Migrations
 {
     [DbContext(typeof(GTFSContext))]
-    partial class TransitDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250808210035_RemoveStopCity")]
+    partial class RemoveStopCity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -543,28 +546,6 @@ namespace Tranzor.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Geom"), "GIST");
 
                     b.ToTable("cities", (string)null);
-                });
-
-            modelBuilder.Entity("Tranzor.Models.Gtfs.External.StopCity", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text")
-                        .HasColumnName("id");
-
-                    b.Property<string>("CityId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("city_id");
-
-                    b.Property<string>("StopId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("stop_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_stop_cities");
-
-                    b.ToTable("stop_cities", (string)null);
                 });
 
             modelBuilder.Entity("Tranzor.Models.Network", b =>

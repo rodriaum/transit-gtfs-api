@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tranzor.Models;
+using Tranzor.Models.Gtfs.External;
 
 namespace Tranzor.Databases;
 
@@ -26,6 +27,8 @@ public class GTFSContext : DbContext
     public DbSet<FareLegRule> FareLegRules { get; set; }
     public DbSet<FareProduct> FareProducts { get; set; }
     public DbSet<Network> Networks { get; set; }
+    public DbSet<City> Cities { get; set; }
+    public DbSet<StopCity> StopCities { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +52,8 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<FareLegRule>().ToTable("gtfs_fare_leg_rules");
         modelBuilder.Entity<FareProduct>().ToTable("gtfs_fare_products");
         modelBuilder.Entity<Network>().ToTable("gtfs_networks");
+        modelBuilder.Entity<City>().ToTable("cities");
+        modelBuilder.Entity<StopCity>().ToTable("stop_cities");
 
         // Keys
         modelBuilder.Entity<Agency>().HasKey(e => e.Id);
@@ -70,6 +75,8 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<FareLegRule>().HasKey(e => e.Id);
         modelBuilder.Entity<FareProduct>().HasKey(e => e.Id);
         modelBuilder.Entity<Network>().HasKey(e => e.Id);
+        modelBuilder.Entity<City>().HasKey(e => e.Id);
+        modelBuilder.Entity<StopCity>().HasKey(e => e.Id);
 
         // Indexes
         modelBuilder.Entity<Agency>().HasIndex(e => e.AgencyId);
@@ -112,6 +119,15 @@ public class GTFSContext : DbContext
 
         modelBuilder.Entity<Shape>()
             .HasIndex(s => s.Geom)
+            .HasMethod("GIST");
+
+        modelBuilder.Entity<City>()
+            .Property(c => c.Geom)
+            .HasColumnType("geometry(MultiPolygon,4326)")
+            .HasSrid(4326);
+
+        modelBuilder.Entity<City>()
+            .HasIndex(c => c.Geom)
             .HasMethod("GIST");
     }
 }
