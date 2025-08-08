@@ -25,9 +25,12 @@ public class StopsService : IStopsService
         _redis = redis;
     }
 
-    public async Task<List<Stop>> GetAllAsync()
+    public async Task<List<Stop>> GetAllAsync(string? cityId = null)
     {
-        return await _dbContext.Stops.ToListAsync();
+        return await (string.IsNullOrEmpty(cityId)
+            ? _dbContext.Stops
+            : _dbContext.Stops.Where(stop => stop.StopCities.Any(sc => sc.CityId == cityId)))
+            .ToListAsync();
     }
 
     public async Task<Stop?> GetByIdAsync(string stopId)
@@ -38,12 +41,13 @@ public class StopsService : IStopsService
         );
     }
 
-    public async Task<List<Stop>> GetNearestStopAsync(double lat, double lon, int limit = 1)
+    public async Task<List<Stop>> GetNearestStopAsync(double lat, double lon, string? cityId = null, int limit = 1)
     {
-        var point = new Point(lon, lat) { SRID = Constant.GeometryFactory.SRID };
+        Point point = new Point(lon, lat) { SRID = Constant.GeometryFactory.SRID };
 
-        return await _dbContext.Stops
-            .Where(s => s.Location != null)
+        return await (string.IsNullOrEmpty(cityId)
+            ? _dbContext.Stops.Where(s => s.Location != null)
+            : _dbContext.Stops.Where(s => s.Location != null && s.StopCities.Any(sc => sc.CityId == cityId)))
             .OrderBy(s => s.Location!.Distance(point))
             .Take(limit)
             .ToListAsync();

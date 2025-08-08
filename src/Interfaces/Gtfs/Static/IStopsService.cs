@@ -4,8 +4,8 @@ namespace Tranzor.Interfaces.Gtfs.Static;
 
 public interface IStopsService
 {
-    Task<List<Stop>> GetAllAsync();
+    Task<List<Stop>> GetAllAsync(string? cityId = null);
     Task<Stop?> GetByIdAsync(string stopId);
     Task ImportDataAsync(string directoryPath);
-    Task<List<Stop>> GetNearestStopAsync(double lat, double lon, int limit = 1);
+    Task<List<Stop>> GetNearestStopAsync(double lat, double lon, string? cityId = null, int limit = 1);
 }

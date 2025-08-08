@@ -5,8 +5,6 @@ using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
 using Tranzor.Models.Router;
-using Tranzor.Services.Gtfs;
-using Tranzor.Services.Gtfs.Static;
 using Tranzor.Utils;
 
 namespace Tranzor.Controllers.Gtfs;

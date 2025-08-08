@@ -2,6 +2,7 @@ using NetTopologySuite.Geometries;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using Tranzor.Enums;
+using Tranzor.Models.Gtfs.External;
 
 namespace Tranzor.Models;
 
@@ -29,6 +30,11 @@ public class Stop
     public long? Distance { get; set; }
     [NotMapped]
     public long? WalkingTime { get; set; }
+
+    public virtual ICollection<StopCity> StopCities { get; set; }
+
+    [NotMapped]
+    public string? CityId => StopCities.Select(sc => sc.CityId).FirstOrDefault();
 
     public void CalcDistAndWalking(double lat, double lon)
     {
