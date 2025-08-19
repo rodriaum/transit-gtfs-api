@@ -8,6 +8,6 @@ public class GtfsDataRealtime
     [JsonPropertyName("realtime_file_type")]
     public RealtimeFileType? RealtimeFileType { get; set; }
 
-    [JsonPropertyName("path")]
-    public string? Path { get; set; }
+    [JsonPropertyName("url")]
+    public string? Url { get; set; }
 }

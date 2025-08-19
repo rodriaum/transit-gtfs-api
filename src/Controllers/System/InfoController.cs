@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Tranzor.Controllers.System;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class InfoController : ControllerBase
 {
     [HttpGet("version")]

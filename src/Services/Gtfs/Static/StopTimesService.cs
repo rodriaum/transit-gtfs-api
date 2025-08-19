@@ -58,7 +58,11 @@ public class StopTimesService : IStopTimesService
     public async Task<List<StopTime>> GetAllAsync(int page = 1, int pageSize = 100)
     {
         int skip = (page - 1) * pageSize;
-        return await _dbContext.StopTimes.Skip(skip).Take(pageSize).ToListAsync();
+
+        return await _dbContext.StopTimes
+            .Skip(skip)
+            .Take(pageSize)
+            .ToListAsync();
     }
 
     public async Task<List<StopTime>?> GetByTripIdAsync(string tripId, bool ignoreCalendar = false)

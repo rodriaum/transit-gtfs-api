@@ -32,6 +32,10 @@ public class ConfigService : IConfigService
                     config = loadedConfig;
                 }
             }
+            else
+            {
+                _logger.LogWarning("Could not find {0} file, import will be turned off even if it is enabled in the configuration file.", configFilePath);
+            }
 
             if (isGtfsDataFileIntegrity)
             {
@@ -42,8 +46,14 @@ public class ConfigService : IConfigService
                     GtfsDataContext.GtfsDataList = gtfsDataList;
                 }
             }
+            else
+            {
+                _logger.LogWarning("Could not find {0} file, because of this there will be no operators for the API to work, and it will be turned off.", configFilePath);
+                Environment.Exit(0);
+                Thread.Sleep(2500);
+            }
 
-            GtfsDataContext.Config = config;
+                GtfsDataContext.Config = config;
             GtfsDataContext.Finish = true;
         }
         catch (Exception ex)
@@ -56,17 +66,16 @@ public class ConfigService : IConfigService
     private (bool, string) VerifyConfigFileIntegrity(string file)
     {
         string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string? path = Path.Combine(baseDirectory, "Data", file);
+        string? path = Path.Combine(baseDirectory, Constant.ConfigPath, file);
 
         if (File.Exists(path))
             return (true, path);
 
-        path = Path.Combine(baseDirectory, "..", "..", "..", "..", "Data", file);
+        path = Path.Combine(baseDirectory, "..", "..", "..", "..", Constant.ConfigPath, file);
 
         if (File.Exists(path))
             return (true, path);
 
-        _logger.LogWarning("Could not find {File} file, import will be turned off even if it is enabled in the configuration file.", file);
         return (false, file);
     }
 }

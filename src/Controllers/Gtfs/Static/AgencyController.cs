@@ -5,7 +5,7 @@ using Tranzor.Interfaces.Gtfs.Static;
 namespace Tranzor.Controllers.Gtfs.Static;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class AgencyController : ControllerBase
 {
     private readonly IAgencyService _agencyService;

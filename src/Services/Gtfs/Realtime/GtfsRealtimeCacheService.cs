@@ -34,8 +34,8 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
     {
         if (gtfsData == null) return null;
 
-        string? url = gtfsData.Path;
-        if (string.IsNullOrEmpty(gtfsData.Path)) return null;
+        string? url = gtfsData.Url;
+        if (string.IsNullOrEmpty(gtfsData.Url)) return null;
 
         RealtimeFileType? fileType = gtfsData.RealtimeFileType;
         if (fileType == null) return null;
@@ -53,8 +53,6 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 
             HttpResponseMessage response = await _httpClient.GetAsync(url, cancellationToken);
             response.EnsureSuccessStatusCode();
-
-
 
             FeedMessage? feed = null;
 

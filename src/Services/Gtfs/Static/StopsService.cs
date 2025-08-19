@@ -8,6 +8,7 @@ using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
+using Tranzor.Models.Gtfs.External;
 using Tranzor.Utils;
 
 namespace Tranzor.Services.Gtfs.Static;
@@ -25,13 +26,38 @@ public class StopsService : IStopsService
         _redis = redis;
     }
 
-    public async Task<List<Stop>> GetAllAsync(string? cityId = null)
+    public async Task<List<Stop>> GetAllAsync(string? cityId = null, int page = 1, int pageSize = 100)
     {
-        return await (string.IsNullOrEmpty(cityId)
-            ? _dbContext.Stops
-            : _dbContext.Stops.Where(stop => stop.StopCities.Any(sc => sc.CityId == cityId)))
+        int skip = (page - 1) * pageSize;
+
+        IQueryable<Stop> query = _dbContext.Stops;
+
+        if (!string.IsNullOrEmpty(cityId))
+        {
+            List<string> stopIds = await _dbContext.StopCities
+                .Where(city => city.CityId == cityId)
+                .Select(city => city.StopId)
+                .ToListAsync();
+
+            if (stopIds.Count > 0)
+            {
+                query = query
+                    .Skip(skip)
+                    .Take(pageSize)
+                    .Where(stop => stopIds.Contains(stop.Id));
+            }
+            else
+            {
+                return new List<Stop>();
+            }
+        }
+
+        return await query
+            .Skip(skip)
+            .Take(pageSize)
             .ToListAsync();
     }
+
 
     public async Task<Stop?> GetByIdAsync(string stopId)
     {
@@ -43,11 +69,9 @@ public class StopsService : IStopsService
 
     public async Task<List<Stop>> GetNearestStopAsync(double lat, double lon, string? cityId = null, int limit = 1)
     {
-        Point point = new Point(lon, lat) { SRID = Constant.GeometryFactory.SRID };
+        Point point = new Point(lon, lat) { SRID = Constant.Wgs84GeometryFactory.SRID };
 
-        return await (string.IsNullOrEmpty(cityId)
-            ? _dbContext.Stops.Where(s => s.Location != null)
-            : _dbContext.Stops.Where(s => s.Location != null && s.StopCities.Any(sc => sc.CityId == cityId)))
+        return await _dbContext.Stops.Where(s => s.Location != null)
             .OrderBy(s => s.Location!.Distance(point))
             .Take(limit)
             .ToListAsync();
@@ -72,11 +96,11 @@ public class StopsService : IStopsService
             int totalImported = 0;
             int totalIgnored = 0;
 
-            HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()
-            );
+            HashSet<string> existingIds = [.. await _dbContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()];
+            List<City> cities = await _dbContext.Cities.ToListAsync();
 
             List<Stop> entities = new List<Stop>(batchSize);
+            List<StopCity> stopCities = new List<StopCity>(batchSize);
 
             using (StreamReader reader = new StreamReader(filePath))
             {
@@ -132,17 +156,39 @@ public class StopsService : IStopsService
                         StopTimezone = rowData.GetValueOrDefault("stop_timezone", null),
                         WheelchairBoarding = EnumUtil.FromValue<AccessibilityType>(NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wheelchair_boarding", null))),
                         PlatformCode = rowData.GetValueOrDefault("platform_code", null),
-                        Location = Constant.GeometryFactory.CreatePoint(new Coordinate(stopLon, stopLat))
+                        Location = Constant.Wgs84GeometryFactory.CreatePoint(new Coordinate(stopLon, stopLat))
                     };
 
                     entities.Add(entity);
                     existingIds.Add(stopId.ToLower());
+
+                    foreach (City city in cities)
+                    {
+                        if (entity.Location == null) break;
+                        if (!city.Geom.Contains(entity.Location)) continue;
+
+                        StopCity stopCity = new StopCity();
+
+                        stopCity.Id = Guid.NewGuid().ToString();
+                        stopCity.CityId = city.Id;
+                        stopCity.StopId = entity.Id;
+
+                        stopCities.Add(stopCity);
+                    }
+
+                    if (!stopCities.Any(sc => sc.StopId == entity.Id))
+                    {
+                        _logger.LogWarning("Stop {StopId} does not have a city to be assigned.", entity.StopId);
+                    }
 
                     if (entities.Count >= batchSize)
                     {
                         await _dbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
+
+                        await _dbContext.BulkInsertAsync(stopCities);
+                        stopCities.Clear();
                     }
                 }
 
@@ -151,6 +197,9 @@ public class StopsService : IStopsService
                     await _dbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
+
+                    await _dbContext.BulkInsertAsync(stopCities);
+                    stopCities.Clear();
                 }
             }
 

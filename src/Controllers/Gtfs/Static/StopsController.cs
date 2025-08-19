@@ -5,7 +5,7 @@ using Tranzor.Models;
 namespace Tranzor.Controllers.Gtfs.Static;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class StopsController : ControllerBase
 {
     private readonly IStopsService _stopsService;
@@ -16,9 +16,12 @@ public class StopsController : ControllerBase
     }
 
     [HttpGet("stops")]
-    public async Task<ActionResult<List<Stop>>> GetAll()
+    public async Task<ActionResult<List<Stop>>> GetAll(
+        [FromQuery] string cityId, 
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 100)
     {
-        return await _stopsService.GetAllAsync();
+        return await _stopsService.GetAllAsync(cityId, page, pageSize);
     }
 
     [HttpGet("stops/{id}")]
@@ -36,9 +39,10 @@ public class StopsController : ControllerBase
     public async Task<ActionResult<List<Stop>>> GetNearbyStops(
         [FromQuery] double latitude,
         [FromQuery] double longitude,
+        [FromQuery] string cityId,
         [FromQuery] int limit = 1)
     {
-        List<Stop> nearestStops = await _stopsService.GetNearestStopAsync(latitude, longitude, limit);
+        List<Stop> nearestStops = await _stopsService.GetNearestStopAsync(latitude, longitude, cityId, limit);
 
         if (nearestStops == null || !nearestStops.Any())
             return NotFound();

@@ -15,6 +15,7 @@ using Tranzor.HealthChecks;
 using Tranzor.Interfaces.Config;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs;
+using Tranzor.Interfaces.Gtfs.External;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Services.Config;
@@ -31,30 +32,26 @@ public class Startup
         string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         string envPath = Path.Combine(baseDirectory, ".env");
 
-        Log.Information($"Trying to load .env file from path: {Path.GetFullPath(envPath)}");
+        Log.Information("Trying to load .env file from bin directory.");
 
         if (File.Exists(envPath))
         {
-            Log.Information(".env file found!");
             Env.Load(envPath);
-            Log.Information(".env file loaded successfully!");
+            Log.Information(".env file found and loaded successfully.");
         }
         else
         {
-            Log.Warning(".env file not found in bin directory!");
-
             string rootPath = Path.Combine(baseDirectory, "..", "..", "..", "..", ".env");
-            Log.Information($"Trying to load from root directory: {Path.GetFullPath(rootPath)}");
+            Log.Information("Trying to load from root directory.");
 
             if (File.Exists(rootPath))
             {
-                Log.Information(".env file found in root directory!");
                 Env.Load(rootPath);
-                Log.Information(".env file loaded successfully!");
+                Log.Information(".env file found and loaded successfully.");
             }
             else
             {
-                Log.Error("ERROR: .env file not found in any location!");
+                Log.Error("ERROR: .env file not found in any location...");
                 Log.Information("Please create a .env file in the project root");
                 Environment.Exit(1);
             }
@@ -76,11 +73,11 @@ public class Startup
             if (string.IsNullOrWhiteSpace(value))
             {
                 missingVars.Add(envVar);
-                logger.LogError($"Required environment variable not found: {envVar}");
+                logger.LogError("Required environment variable not found: {0}", envVar);
             }
             else
             {
-                logger.LogInformation($"Loaded environment variable: {envVar}");
+                logger.LogInformation("Loaded environment variable: {0}", envVar);
             }
         }
 
@@ -276,6 +273,7 @@ public class Startup
         services.AddScoped<IFareProductService, FareProductService>();
         services.AddScoped<INetworkService, NetworkService>();
         services.AddScoped<IGtfsRouterService, GtfsRouterService>();
+        services.AddScoped<ICityService, CityService>();
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)
@@ -334,7 +332,7 @@ public class Startup
         using (IServiceScope scope = app.ApplicationServices.CreateScope())
         {
             GTFSContext db = scope.ServiceProvider.GetRequiredService<GTFSContext>();
-            db.Database.Migrate();
+            //db.Database.Migrate();
         }
 
         app.UseEndpoints(endpoints =>

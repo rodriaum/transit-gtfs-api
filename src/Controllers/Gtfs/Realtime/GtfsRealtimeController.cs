@@ -8,7 +8,7 @@ using TransitRealtime;
 namespace Tranzor.Controllers.Gtfs;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class GtfsRealtimeController : ControllerBase
 {
     private readonly IGtfsRealtimeCacheService _gtfsRealtimeService;

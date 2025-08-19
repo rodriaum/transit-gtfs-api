@@ -76,7 +76,7 @@ public class ConverterUtil
 
         bool hasTrip = false;
 
-        TripDescriptor tripDescriptor = new TripDescriptor();
+        TripDescriptor? tripDescriptor = new TripDescriptor();
 
         // NOTE: Different agencies have different ways of doing TripId, so it will be really hardcore.
         // FIXME: Maybe it will be modified in the future.
@@ -99,25 +99,25 @@ public class ConverterUtil
                     string trip = GetValue("stcp%3Anr_viagem%3A");
                     string sense = GetValue("stcp%3Asentido%3A");
 
+                    // FIXME: This is just a workaround to get the service type ID
                     string type = "U";
 
-                    tripDescriptor.TripId = $"{route}_{turn}_{type}_{sense}";
+                    tripDescriptor.TripId = $"{route}_{sense}_{type}_{turn}";
+
                     hasTrip = true;
                 }
                 break;
         }
 
-        TripUpdate? tripUpdate = new TripUpdate();
-        tripUpdate.Trip = tripDescriptor;
+        vehiclePosition.Trip = tripDescriptor;
 
         if (!hasTrip)
-            tripUpdate = null;
+            tripDescriptor = null;
 
         return new FeedEntity
         {
             Id = vehicle.Id,
-            Vehicle = vehiclePosition,
-            TripUpdate = tripUpdate
+            Vehicle = vehiclePosition
         };
     }
 }

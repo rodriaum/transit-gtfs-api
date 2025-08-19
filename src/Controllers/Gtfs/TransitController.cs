@@ -10,7 +10,7 @@ using Tranzor.Utils;
 namespace Tranzor.Controllers.Gtfs;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class TransitController : ControllerBase
 {
     private readonly IRoutesService _routesService;
@@ -19,8 +19,6 @@ public class TransitController : ControllerBase
     private readonly IStopsService _stopsService;
     private readonly IGtfsRealtimeCacheService _gtfsRealtimeService;
     private readonly IGtfsRouterService _routerService;
-    private readonly ICalendarDatesService _calendarDatesService;
-    private readonly ICalendarService _calendarService;
     private readonly ILogger<TransitController> _logger;
 
     public TransitController(
@@ -30,8 +28,6 @@ public class TransitController : ControllerBase
         IStopsService stopsService,
         IGtfsRealtimeCacheService gtfsRealtimeService,
         IGtfsRouterService routerService,
-        ICalendarDatesService calendarDatesService,
-        ICalendarService calendarService,
         ILogger<TransitController> logger)
     {
         _routesService = routesService;
@@ -40,8 +36,6 @@ public class TransitController : ControllerBase
         _stopsService = stopsService;
         _gtfsRealtimeService = gtfsRealtimeService;
         _routerService = routerService;
-        _calendarDatesService = calendarDatesService;
-        _calendarService = calendarService;
         _logger = logger;
     }
 
@@ -140,7 +134,6 @@ public class TransitController : ControllerBase
             List<StopTime> upcomingDepartures = stopTimes
                 .Where(st => string.Compare(st.DepartureTime, referenceTimeString) > 0)
                 .OrderBy(st => st.DepartureTime)
-                .Take(pageSize)
                 .ToList();
 
             if (upcomingDepartures == null || !upcomingDepartures.Any())
@@ -201,7 +194,7 @@ public class TransitController : ControllerBase
                 {
                     if (stop.StopLat != 0 && stop.StopLon != 0)
                     {
-                        var distance = MathUtil.Haversine(
+                        double distance = MathUtil.Haversine(
                             stop.StopLat,
                             stop.StopLon,
                             vehicle.Position.Latitude,

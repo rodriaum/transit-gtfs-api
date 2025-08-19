@@ -6,13 +6,14 @@ namespace Tranzor;
 
 public class Constant
 {
-    public static readonly GeometryFactory GeometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+    public static readonly GeometryFactory Wgs84GeometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
 
-    public const string RootPath = "../Assets";
+    public const string ConfigPath = "Config";
+    public const string RootPath = "../Data";
 
-    public static string ExtractPath => Path.Combine(RootPath, "GtfsData", "Normal");
-    public static string ExtractPathRealtime => Path.Combine(RootPath, "GtfsData", "Realtime");
-    public static string TempDownloadFolder => Path.Combine(RootPath, "TempGtfs");
+    public static string ExtractPath => Path.Combine(RootPath, "Gtfs", "Normal");
+    public static string ExtractPathRealtime => Path.Combine(RootPath, "Gtfs", "Realtime");
+    public static string TempDownloadFolder => Path.GetTempPath();
 
     public const string Name = "Tranzor";
     public const string Version = "1.0.0";

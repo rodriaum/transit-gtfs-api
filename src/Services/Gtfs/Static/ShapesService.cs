@@ -108,7 +108,7 @@ public class ShapesService : IShapesService
                         ShapePtLon = shapeLon,
                         ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
                         ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
-                        Geom = Constant.GeometryFactory.CreatePoint(new Coordinate(shapeLon, shapeLat))
+                        Geom = Constant.Wgs84GeometryFactory.CreatePoint(new Coordinate(shapeLon, shapeLat))
                     };
 
                     entities.Add(entity);
