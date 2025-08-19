@@ -79,8 +79,7 @@ Esta API segue os padrões GTFS (General Transit Feed Specification), garantindo
 
 - **URL Base**: `/api/v1/tranzor`
 - **Formatos Suportados**: JSON, Texto Simples
-- **Autenticação**: Não requerida para endpoints públicos
-- **Rate Limiting**: Recomenda-se uso responsável com implementação de cache local
+- **OpenTripPlanner**: Precisa configurar o [OTP](https://github.com/opentripplanner/OpenTripPlanner) para planejar rotas.
 
 ## Licença
 [MIT License](https://github.com/rodriaum/tranzor-api?tab=MIT-1-ov-file#MIT-1-ov-file)
