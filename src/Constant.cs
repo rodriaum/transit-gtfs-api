@@ -30,7 +30,9 @@ public class Constant
         "POSTGRES_CONNECTION",
         "REDIS_CONNECTION",
         "POSTGRES_DATABASE_NAME",
-        "REDIS_INSTANCE_NAME"
+        "REDIS_INSTANCE_NAME",
+        "API_TOKEN",
+        "OTP_URL"
     ];
 
     public static readonly string[] RequiredFiles =

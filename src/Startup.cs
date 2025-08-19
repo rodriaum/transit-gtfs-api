@@ -18,10 +18,13 @@ using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.External;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Interfaces.Http;
 using Tranzor.Services.Config;
 using Tranzor.Services.Gtfs;
 using Tranzor.Services.Gtfs.Realtime;
 using Tranzor.Services.Gtfs.Static;
+using Tranzor.Services.Http;
+using Tranzor.Services.OTP;
 
 namespace Tranzor;
 
@@ -272,8 +275,9 @@ public class Startup
         services.AddScoped<IFareLegRuleService, FareLegRuleService>();
         services.AddScoped<IFareProductService, FareProductService>();
         services.AddScoped<INetworkService, NetworkService>();
-        services.AddScoped<IGtfsRouterService, GtfsRouterService>();
+        services.AddScoped<IOpenTripPlannerService, OpenTripPlannerService>();
         services.AddScoped<ICityService, CityService>();
+        services.AddHttpClient<IOtpHttpClient, OtpHttpClient>();
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)

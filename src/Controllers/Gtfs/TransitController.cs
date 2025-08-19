@@ -4,7 +4,7 @@ using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
-using Tranzor.Models.Router;
+using Tranzor.Models.OTP;
 using Tranzor.Utils;
 
 namespace Tranzor.Controllers.Gtfs;
@@ -18,7 +18,7 @@ public class TransitController : ControllerBase
     private readonly IStopTimesService _stopTimesService;
     private readonly IStopsService _stopsService;
     private readonly IGtfsRealtimeCacheService _gtfsRealtimeService;
-    private readonly IGtfsRouterService _routerService;
+    private readonly IOpenTripPlannerService _routerService;
     private readonly ILogger<TransitController> _logger;
 
     public TransitController(
@@ -27,7 +27,7 @@ public class TransitController : ControllerBase
         IStopTimesService stopTimesService,
         IStopsService stopsService,
         IGtfsRealtimeCacheService gtfsRealtimeService,
-        IGtfsRouterService routerService,
+        IOpenTripPlannerService routerService,
         ILogger<TransitController> logger)
     {
         _routesService = routesService;
@@ -267,8 +267,8 @@ public class TransitController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error planning a route.");
-            return StatusCode(500, new { message = "Error processing request", error = ex.Message });
+            _logger.LogError(ex, $"Error processing a route, is OpenTripPlanner running?");
+            return StatusCode(500, new { message = "Error processing order, check if you have OpenTripPlanner running.", error = ex.Message });
         }
     }
 }
