@@ -39,8 +39,18 @@ public class GtfsFileService : IGtfsFileService
             GtfsData gtfsData = GtfsDataContext.GtfsDataList[i];
 
             string gtfsUrl = gtfsData.GtfsUrl;
-            string providerFolderName = gtfsData.AgencyId;
-            string providerDirectory = Path.Combine(Constant.ExtractPath, providerFolderName);
+            string agencyId = gtfsData.AgencyId;
+            string providerDirectory = Path.Combine(Constant.ExtractPath, agencyId);
+
+            if (gtfsData.GtfsExpireAt.HasValue && gtfsData.GtfsExpireAt > DateOnly.FromDateTime(DateTime.Now))
+            {
+                _logger.LogWarning(
+                    "It is not possible to export the GTFS data from operator {0} because it expired on {1}.",
+                    agencyId,
+                    gtfsData.GtfsExpireAt.Value.ToShortDateString()
+                );
+                continue;
+            }
 
             if (!Directory.Exists(providerDirectory))
             {
@@ -80,7 +90,7 @@ public class GtfsFileService : IGtfsFileService
             }
             else
             {
-                _logger.LogInformation("GTFS files for {0} already exist at {1}", providerFolderName, providerDirectory);
+                _logger.LogInformation("GTFS files for {0} already exist at {1}", agencyId, providerDirectory);
             }
 
             gtfsDirectories.Add(providerDirectory);
