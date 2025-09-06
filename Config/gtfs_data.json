@@ -2,37 +2,41 @@
   {
     "agency_id": "metro_porto",
     "name": "Metro do Porto",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/7/7e/Metro_do_Porto_logo.svg",
-    "gtfs_url": "https://www.metrodoporto.pt/metrodoporto/uploads/document/file/746/gtfs___horario_de_verao_2025_21_07_2025.zip"
+    "image_url": "",
+    "gtfs_url": "https://www.metrodoporto.pt/metrodoporto/uploads/document/file/746/gtfs___horario_de_verao_2025_21_07_2025.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "stcp",
     "name": "Sociedade Transportes Colectivos do Porto",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/20/STCP_logo.svg",
+    "image_url": "",
     "gtfs_url": "https://opendata.porto.digital/dataset/5275c986-592c-43f5-8f87-aabbd4e4f3a4/resource/89a6854f-2ea3-4ba0-8d2f-6558a9df2a98/download/horarios_gtfs_stcp_16_04_2025.zip",
     "realtime_urls": {
       "VehiclePositions": {
         "realtime_file_type": "FiwareJson",
         "url": "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000"
       }
-    }
+    },
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "unir",
     "name": "UNIR - Uma Forma Única de Ir",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1kzV7fKlnL6ZFwd7enOnWR2AZ7yo1eVXa"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1kzV7fKlnL6ZFwd7enOnWR2AZ7yo1eVXa",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "cp",
     "name": "Comboios de Portugal",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8b/CP_logo.svg",
-    "gtfs_url": "https://publico.cp.pt/gtfs/gtfs.zip"
+    "image_url": "",
+    "gtfs_url": "https://publico.cp.pt/gtfs/gtfs.zip",
+    "gtfs_expire_at": "2025-12-13"
   },
   {
     "agency_id": "carris_metropolitana",
     "name": "Carris Metropolitana",
-    "image_url": "https://carrismetropolitana.pt/wp-content/uploads/2022/06/carris-metropolitana-logo.png",
+    "image_url": "",
     "gtfs_url": "https://api.carrismetropolitana.pt/gtfs",
     "realtime_urls": {
       "VehiclePositions": {
@@ -43,120 +47,182 @@
         "realtime_file_type": "ProtocolBuffer",
         "url": "http://api.carrismetropolitana.pt/alerts.pb"
       }
-    }
+    },
+    "gtfs_expire_at": "2026-06-30"
   },
   {
     "agency_id": "carris",
     "name": "Carris",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Carris_logo.svg",
-    "gtfs_url": "https://gateway.carris.pt/gateway/gtfs/api/v2.11/GTFS"
+    "image_url": "",
+    "gtfs_url": "https://gateway.carris.pt/gateway/gtfs/api/v2.11/GTFS",
+    "gtfs_expire_at": "2025-12-01"
   },
   {
     "agency_id": "fertagus",
     "name": "Fertagus",
-    "image_url": "https://www.fertagus.pt/images/logotipo.png",
-    "gtfs_url": "https://www.fertagus.pt/GTFSTMLzip/Fertagus_GTFS.zip"
+    "image_url": "",
+    "gtfs_url": "https://www.fertagus.pt/GTFSTMLzip/Fertagus_GTFS.zip",
+    "gtfs_expire_at": "2025-12-03"
   },
   {
     "agency_id": "metro_lisboa",
     "name": "Metropolitano  de Lisboa",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Metropolitano_de_Lisboa_logo.svg",
-    "gtfs_url": "https://www.metrolisboa.pt/google_transit/googleTransit.zip"
+    "image_url": "",
+    "gtfs_url": "https://www.metrolisboa.pt/google_transit/googleTransit.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "mts",
     "name": "Metro Transportes do Sul",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/08/Metro_Sul_do_Tejo_logo.png",
-    "gtfs_url": "https://mts.pt/imt/MTS-20240129.zip"
+    "image_url": "",
+    "gtfs_url": "https://mts.pt/imt/MTS-20240129.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "giro",
     "name": "Giro",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1tkKV40lQlFcLiJhq8SwZQdxNVjFclRCA"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1tkKV40lQlFcLiJhq8SwZQdxNVjFclRCA",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "tuf",
     "name": "Transportes Urbanos de Faro",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1xNHjM7yl-SS1jCkGrvIBBlOhUkFfNBjY"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1xNHjM7yl-SS1jCkGrvIBBlOhUkFfNBjY",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "sobe_desce",
     "name": "Sobe e Desce",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1C2KBOVsbm__ymWDgU1bXGbP0Gv3D2yo5"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1C2KBOVsbm__ymWDgU1bXGbP0Gv3D2yo5",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "vamus",
     "name": "Vamus Algarve",
-    "image_url": "https://vamus.pt/assets/logo.png",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1CM8O4ndsfSJhka42SxFUZ9eB-wE10NqX"
+    "image_url": "",
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1CM8O4ndsfSJhka42SxFUZ9eB-wE10NqX",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "a_onda",
     "name": "A Onda",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1aPfsxHqopxxcjV8HlRzImzxh_a6zRxGp"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1aPfsxHqopxxcjV8HlRzImzxh_a6zRxGp",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "apanha_me",
     "name": "Apanha-me!",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1w92h129CWNSoImBRZQOWT6KRPzSFwJ42"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1w92h129CWNSoImBRZQOWT6KRPzSFwJ42",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "circuito_olhao",
     "name": "CUBO",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1X5uXAYJ5ItxMhrnDZSz3v9-U3kgL6QbJ"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1X5uXAYJ5ItxMhrnDZSz3v9-U3kgL6QbJ",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "hf_urbano",
     "name": "Horários do Funchal",
-    "image_url": "https://www.horariosdofunchal.pt/wp-content/uploads/2020/07/logo-horarios-do-funchal.png",
-    "gtfs_url": "http://www.horariosdofunchal.pt/google_transit.zip"
+    "image_url": "",
+    "gtfs_url": "http://www.horariosdofunchal.pt/google_transit.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "tuvr",
     "name": "Transportes Urbanos de Vila Real",
     "image_url": "",
-    "gtfs_url": "http://www.urbanosvilareal.pt/fotos/gca/2019-01-10_gtfs_tuvr_v4_11987813585c3dbf6a271b6.zip"
+    "gtfs_url": "http://www.urbanosvilareal.pt/fotos/gca/2019-01-10_gtfs_tuvr_v4_11987813585c3dbf6a271b6.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "vai_vem",
     "name": "Vai Vem",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1Ii02y25MCOilAaQixsZNs1rcgdvNoYCs"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1Ii02y25MCOilAaQixsZNs1rcgdvNoYCs",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "tub",
-    "name": "TUB Braga",
-    "image_url": "https://www.tub.pt/images/logo.png",
-    "gtfs_url": "https://www.tub.pt/developer/gtfs/feed/tub.zip"
+    "name": "Transportes Urbanos de Braga",
+    "image_url": "",
+    "gtfs_url": "https://www.tub.pt/developer/gtfs/feed/tub.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "tcp",
     "name": "Transportes Colectivos do Barreiro",
-    "image_url": "https://www.tcbarreiro.pt/sites/default/files/logo.png",
-    "gtfs_url": "https://www.tcbarreiro.pt/front/files/sample_gtfs/GTFS-TCB_24.zip"
+    "image_url": "",
+    "gtfs_url": "https://www.tcbarreiro.pt/front/files/sample_gtfs/GTFS-TCB_24.zip",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "rmtejo_ii",
     "name": "Rodoviária do Tejo II",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1v9eGjezOzbaBQi-Aa5c15tZXcSiiDwqA"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1v9eGjezOzbaBQi-Aa5c15tZXcSiiDwqA",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "rdl_rodoviaria_lis",
     "name": "Rodoviária de Lisboa",
     "image_url": "",
-    "gtfs_url": "https://drive.google.com/uc?export=download&id=1NqcOk8IrlV73TBonJAxpzIUTjaAjF27M"
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1NqcOk8IrlV73TBonJAxpzIUTjaAjF27M",
+    "gtfs_expire_at": ""
   },
   {
     "agency_id": "transtejo",
     "name": "Transtejo Soflusa",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/6d/Transtejo_Soflusa_logo.png",
-    "gtfs_url": "https://transitfeeds.com/p/transtejo/1006/latest/download"
+    "image_url": "",
+    "gtfs_url": "https://transitfeeds.com/p/transtejo/1006/latest/download",
+    "gtfs_expire_at": ""
+  },
+  {
+    "agency_id": "rdoeste",
+    "name": "Rodoviária do Oeste",
+    "image_url": "",
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1uzZ2gGJelxkKpb5PQIDSrG5rLdmYYgkn",
+    "gtfs_expire_at": "2025-12-31"
+  },
+  {
+    "agency_id": "dtpt",
+    "name": "Daytrip Shuttle",
+    "image_url": "",
+    "gtfs_url": "https://gtfs.daytrip.com/gtfs_pt.zip",
+    "gtfs_expire_at": ""
+  },
+  {
+    "agency_id": "rdl_ii",
+    "name": "RDL Rodoviária do LIS II",
+    "image_url": "",
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=192Qat2jJKyv5hhO8T3eVT70M5NB0dtXC",
+    "gtfs_expire_at": ""
+  },
+  {
+    "agency_id": "rdl",
+    "name": "RDL Rodoviária do LIS",
+    "image_url": "",
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1NqcOk8IrlV73TBonJAxpzIUTjaAjF27M",
+    "gtfs_expire_at": "2025-12-31"
+  },
+  {
+    "agency_id": "mobi_cascais",
+    "name": "MobiCascais",
+    "image_url": "",
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=13ucYiAJRtu-gXsLa02qKJrGOgDjbnUWX",
+    "gtfs_expire_at": "2026-12-31"
+  },
+  {
+    "agency_id": "autna",
+    "name": "AUTNA SL",
+    "image_url": "",
+    "gtfs_url": "https://drive.google.com/uc?export=download&id=1gah1x10RyFu7gJPweBcCXPd9vcFJFQ7c",
+    "gtfs_expire_at": "2025-12-31"
   }
 ]
