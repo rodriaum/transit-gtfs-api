@@ -67,7 +67,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
                     List<FiwareVehicle>? vehicles = await response.Content.ReadFromJsonAsync<List<FiwareVehicle>>(cancellationToken);
 
                     if (vehicles != null && vehicles.Any())
-                        feed = ConverterUtil.ConvertToGtfsRealtimeFeed(vehicles);
+                        feed = GtfsRealtimeUtil.ConvertToGtfsRealtimeFeed(vehicles);
                     break;
             }
 

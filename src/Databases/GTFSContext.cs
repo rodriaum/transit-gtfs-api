@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tranzor.Models;
-using Tranzor.Models.Gtfs.External;
+using Tranzor.Models.External;
 
 namespace Tranzor.Databases;
 

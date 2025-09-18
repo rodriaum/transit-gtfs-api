@@ -6,7 +6,7 @@ using Tranzor.Models.Fiware;
 
 namespace Tranzor.Utils;
 
-public class ConverterUtil
+public class GtfsRealtimeUtil
 {
     /// <summary>
     /// Converts a collection of FiwareVehicle objects to a GTFS-RT FeedMessage.

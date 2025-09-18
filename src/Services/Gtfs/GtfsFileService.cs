@@ -42,12 +42,12 @@ public class GtfsFileService : IGtfsFileService
             string agencyId = gtfsData.AgencyId;
             string providerDirectory = Path.Combine(Constant.ExtractPath, agencyId);
 
-            if (gtfsData.GtfsExpireAt.HasValue && gtfsData.GtfsExpireAt > DateOnly.FromDateTime(DateTime.Now))
+            if (gtfsData.GetExpireAtDateOnly().HasValue && gtfsData.GetExpireAtDateOnly() > DateOnly.FromDateTime(DateTime.Now))
             {
                 _logger.LogWarning(
                     "It is not possible to export the GTFS data from operator {0} because it expired on {1}.",
                     agencyId,
-                    gtfsData.GtfsExpireAt.Value.ToShortDateString()
+                    gtfsData.GetExpireAtDateOnly()?.ToShortDateString()
                 );
                 continue;
             }

@@ -15,7 +15,7 @@ public class GtfsData
     public string GtfsUrl { get; set; }
 
     [JsonPropertyName("gtfs_expire_at")]
-    public DateOnly? GtfsExpireAt { get; set; }
+    public string? GtfsExpireAt { get; set; }
 
     [JsonPropertyName("ignored_files")]
     public List<string> IgnoredFiles { get; set; } = new List<string>();
@@ -23,13 +23,10 @@ public class GtfsData
     [JsonPropertyName("realtime_urls")]
     public Dictionary<RealtimeType, GtfsDataRealtime>? RealtimeUrls { get; set; }
 
-    public GtfsData(string agencyId, string name, string gtfsUrl, DateOnly gtfsExpireAt, List<string>? ignoredFiles = null, Dictionary<RealtimeType, GtfsDataRealtime>? realtimeUrls = null)
+    public DateOnly? GetExpireAtDateOnly()
     {
-        AgencyId = agencyId.ToLower();
-        Name = name;
-        GtfsUrl = gtfsUrl;
-        GtfsExpireAt = gtfsExpireAt;
-        IgnoredFiles = ignoredFiles ?? new List<string>();
-        RealtimeUrls = realtimeUrls;
+        return string.IsNullOrEmpty(this.GtfsExpireAt)
+            ? null
+            : DateOnly.Parse(this.GtfsExpireAt);
     }
 }

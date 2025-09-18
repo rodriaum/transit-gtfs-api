@@ -1,7 +1,6 @@
-using DotNetEnv;
-using Serilog;
 using System.Diagnostics;
 using Tranzor.Context;
+using Tranzor.Enums;
 using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -95,10 +94,37 @@ public class GtfsDataService : IGtfsDataService
 
     public async Task LoadDataFromFilesAsync()
     {
-        if (!GtfsDataContext.Config.DownloadData)
+        if (GtfsDataContext.Config.DownloadData == DownloadDataType.None)
         {
-            _logger.LogInformation("Import option is false, nothing will be imported.");
+            _logger.LogInformation("Import option is None, nothing will be imported.");
             return;
+        }
+        else if (GtfsDataContext.Config.DownloadData == DownloadDataType.FirstUse)
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string flagFile = Path.Combine(baseDirectory, "api_started.flag");
+
+            try
+            {
+                if (!File.Exists(flagFile))
+                {
+                    File.WriteAllText(flagFile, DateTime.Now.ToString("O"));
+                    _logger.LogInformation("First use detected. Flag file created at {FlagFile}", flagFile);
+                }
+                else
+                {
+                    _logger.LogInformation("Flag file already exists ({FlagFile}), skipping import.", flagFile);
+                    return;
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "No permission to write flag file in {BaseDirectory}", baseDirectory);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while writing flag file {FlagFile}", flagFile);
+            }
         }
 
         Stopwatch stopwatch = Stopwatch.StartNew();

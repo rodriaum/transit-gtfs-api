@@ -1,4 +1,4 @@
-﻿namespace Tranzor.Models.Gtfs.External;
+﻿namespace Tranzor.Models.External;
 
 public class StopCity
 {

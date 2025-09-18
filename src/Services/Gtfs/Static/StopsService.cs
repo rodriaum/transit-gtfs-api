@@ -8,7 +8,7 @@ using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
-using Tranzor.Models.Gtfs.External;
+using Tranzor.Models.External;
 using Tranzor.Utils;
 
 namespace Tranzor.Services.Gtfs.Static;

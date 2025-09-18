@@ -1,4 +1,5 @@
 using Tranzor.Context;
+using Tranzor.Enums;
 using Tranzor.Interfaces.Config;
 using Tranzor.Models.Config;
 using Tranzor.Utils;
@@ -21,7 +22,7 @@ public class ConfigService : IConfigService
             (bool isConfigFileIntegrity, string configFilePath) = VerifyConfigFileIntegrity("config.json");
             (bool isGtfsDataFileIntegrity, string gtfsDataFilePath) = VerifyConfigFileIntegrity("gtfs_data.json");
 
-            ConfigData config = new ConfigData(false);
+            ConfigData config = new ConfigData(DownloadDataType.None, false);
 
             if (isConfigFileIntegrity)
             {

@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Tranzor.Databases;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.External;
-using Tranzor.Models.Gtfs.External;
+using Tranzor.Models.External;
 
-namespace Tranzor.Services.Gtfs.Static;
+namespace Tranzor.Services.External;
 
 public class CityService : ICityService
 {

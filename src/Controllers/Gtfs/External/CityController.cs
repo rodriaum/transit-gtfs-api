@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Tranzor.Interfaces.Gtfs.External;
 using Tranzor.Models;
-using Tranzor.Models.Gtfs.External;
+using Tranzor.Models.External;
 
 namespace Tranzor.Controllers.Gtfs.External;
 

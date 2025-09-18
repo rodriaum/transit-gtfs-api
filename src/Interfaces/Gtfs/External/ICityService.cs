@@ -1,4 +1,4 @@
-﻿using Tranzor.Models.Gtfs.External;
+﻿using Tranzor.Models.External;
 
 namespace Tranzor.Interfaces.Gtfs.External;
 

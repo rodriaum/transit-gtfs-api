@@ -1,6 +1,6 @@
 ﻿using NetTopologySuite.Geometries;
 
-namespace Tranzor.Models.Gtfs.External;
+namespace Tranzor.Models.External;
 
 public class City
 {

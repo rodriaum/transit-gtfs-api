@@ -1,14 +1,19 @@
 ﻿using System.Text.Json.Serialization;
+using Tranzor.Enums;
 
 namespace Tranzor.Models.Config;
 
 public class ConfigData
 {
     [JsonPropertyName("download_data")]
-    public bool DownloadData { get; set; }
+    public DownloadDataType DownloadData { get; set; } = DownloadDataType.None;
 
-    public ConfigData(bool downloadData)
+    [JsonPropertyName("ignore_exceeded_trips")]
+    public bool IgnoreExceededTrips { get; set; }
+
+    public ConfigData(DownloadDataType downloadData, bool ignoreExceededTrips)
     {
         this.DownloadData = downloadData;
+        this.IgnoreExceededTrips = ignoreExceededTrips;
     }
 }

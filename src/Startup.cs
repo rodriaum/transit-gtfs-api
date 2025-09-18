@@ -20,6 +20,7 @@ using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Interfaces.Http;
 using Tranzor.Services.Config;
+using Tranzor.Services.External;
 using Tranzor.Services.Gtfs;
 using Tranzor.Services.Gtfs.Realtime;
 using Tranzor.Services.Gtfs.Static;
@@ -35,12 +36,12 @@ public class Startup
         string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         string envPath = Path.Combine(baseDirectory, ".env");
 
-        Log.Information("Trying to load .env file from bin directory.");
+        Log.Information("Trying to load environment file from bin directory.");
 
         if (File.Exists(envPath))
         {
             Env.Load(envPath);
-            Log.Information(".env file found and loaded successfully.");
+            Log.Information("environment file found and loaded successfully.");
         }
         else
         {
@@ -50,12 +51,12 @@ public class Startup
             if (File.Exists(rootPath))
             {
                 Env.Load(rootPath);
-                Log.Information(".env file found and loaded successfully.");
+                Log.Information("Environment file found and loaded successfully.");
             }
             else
             {
-                Log.Error("ERROR: .env file not found in any location...");
-                Log.Information("Please create a .env file in the project root");
+                Log.Error("ERROR: environment file not found in any location...");
+                Log.Information("Please create a environment file in the project root");
                 Environment.Exit(1);
             }
         }
