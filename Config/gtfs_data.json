@@ -224,5 +224,12 @@
     "image_url": "",
     "gtfs_url": "https://drive.google.com/uc?export=download&id=1gah1x10RyFu7gJPweBcCXPd9vcFJFQ7c",
     "gtfs_expire_at": "2025-12-31"
+  },
+  {
+    "agency_id": "mobiave",
+    "name": "Mobiave",
+    "image_url": "https://play-lh.googleusercontent.com/1QwIdFSRyNc5xQ6NEfxnTR9RaPdM6UESt0v3gnncEYb9qZAVq5QoctJ_1E_eUj_kwO-y=w240-h480-rw",
+    "gtfs_url": "https://map.mobility.ubiwhere.com/dataset/fe6015e4-86c7-437a-8d31-10759fe21a1d/resource/7ac67ef8-015c-42e8-9546-f6f0be956270/download/gtfs_vnf.zip",
+    "gtfs_expire_at": "2025-12-31"
   }
 ]
