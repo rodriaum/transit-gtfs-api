@@ -4,7 +4,13 @@
     "name": "Metro do Porto",
     "image_url": "",
     "gtfs_url": "https://www.metrodoporto.pt/metrodoporto/uploads/document/file/746/gtfs___horario_de_verao_2025_21_07_2025.zip",
-    "gtfs_expire_at": ""
+    "gtfs_expire_at": "",
+    "realtime_urls": {
+      "VehiclePositions": {
+        "realtime_file_type": "WebSocket",
+        "url": "wss://mmt.portodigital.pt/websocket"
+      }
+    }
   },
   {
     "agency_id": "stcp",
@@ -13,8 +19,8 @@
     "gtfs_url": "https://opendata.porto.digital/dataset/5275c986-592c-43f5-8f87-aabbd4e4f3a4/resource/89a6854f-2ea3-4ba0-8d2f-6558a9df2a98/download/horarios_gtfs_stcp_16_04_2025.zip",
     "realtime_urls": {
       "VehiclePositions": {
-        "realtime_file_type": "FiwareJson",
-        "url": "https://broker.fiware.urbanplatform.portodigital.pt/v2/entities?q=vehicleType==bus&limit=1000"
+        "realtime_file_type": "WebSocket",
+        "url": "wss://mmt.portodigital.pt/websocket"
       }
     },
     "gtfs_expire_at": ""
@@ -40,11 +46,11 @@
     "gtfs_url": "https://api.carrismetropolitana.pt/gtfs",
     "realtime_urls": {
       "VehiclePositions": {
-        "realtime_file_type": "ProtocolBuffer",
+        "realtime_file_type": "HTTP",
         "url": "http://api.carrismetropolitana.pt/vehicles.pb"
       },
       "ServiceAlerts": {
-        "realtime_file_type": "ProtocolBuffer",
+        "realtime_file_type": "HTTP",
         "url": "http://api.carrismetropolitana.pt/alerts.pb"
       }
     },

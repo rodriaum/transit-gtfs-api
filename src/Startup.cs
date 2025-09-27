@@ -19,12 +19,14 @@ using Tranzor.Interfaces.Gtfs.External;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Interfaces.Http;
+using Tranzor.Interfaces.MQTT;
 using Tranzor.Services.Config;
 using Tranzor.Services.External;
 using Tranzor.Services.Gtfs;
 using Tranzor.Services.Gtfs.Realtime;
 using Tranzor.Services.Gtfs.Static;
 using Tranzor.Services.Http;
+using Tranzor.Services.MQTT;
 using Tranzor.Services.OTP;
 
 namespace Tranzor;
@@ -269,6 +271,7 @@ public class Startup
         services.AddScoped<IFeedInfoService, FeedInfoService>();
         services.AddSingleton<IGtfsFileService, GtfsFileService>();
         services.AddSingleton<IGtfsRealtimeCacheService, GtfsRealtimeCacheService>();
+        services.AddSingleton<IGtfsMqttRealtimeService, GtfsMqttRealtimeService>();
         services.AddScoped<ITranslationService, TranslationService>();
         services.AddScoped<IAttributionService, AttributionService>();
         services.AddScoped<IStopAreaService, StopAreaService>();

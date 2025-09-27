@@ -111,10 +111,10 @@ public class TransitController : ControllerBase
 
     [HttpGet("upcoming-departures/{stopId}")]
     public async Task<ActionResult<List<UpcomingDeparturesDto>>> GetUpcomingDepartures(
-        string stopId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 100,
-        [FromQuery] DateTime? referenceTime = null)
+    string stopId,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 100,
+    [FromQuery] DateTime? referenceTime = null)
     {
         try
         {
@@ -139,8 +139,8 @@ public class TransitController : ControllerBase
             if (upcomingDepartures == null || !upcomingDepartures.Any())
                 return NotFound("No upcoming departures found");
 
-            List<TransitRealtime.TripUpdate>? tripUpdates = await _gtfsRealtimeService.GetTripUpdatesAsync();
-            List<TransitRealtime.VehiclePosition>? vehiclePositions = await _gtfsRealtimeService.GetVehiclePositionsAsync();
+            List<TransitRealtime.TripUpdate>? tripUpdates = await _gtfsRealtimeService.GetTripUpdatesAsync(stopId: stopId);
+            List<TransitRealtime.VehiclePosition>? vehiclePositions = await _gtfsRealtimeService.GetVehiclePositionsAsync(stopId: stopId);
 
             Dictionary<string, TransitRealtime.TripUpdate> tripUpdateDict = tripUpdates?
                 .Where(tu => tu?.Trip?.TripId != null)
@@ -226,13 +226,14 @@ public class TransitController : ControllerBase
                 Trip? trip = tripsDict.TryGetValue(departure.TripId, out var t) ? t : null;
                 Models.Route? route = trip != null ? await _routesService.GetByIdAsync(trip.RouteId) : null;
 
-                result.Add(new UpcomingDeparturesDto
-                {
-                    StopTime = departure,
-                    Stop = stop,
-                    Trip = trip,
-                    Route = route
-                });
+                if (departure.IsRealtime)
+                    result.Add(new UpcomingDeparturesDto
+                    {
+                        StopTime = departure,
+                        Stop = stop,
+                        Trip = trip,
+                        Route = route
+                    });
             }
 
             return result;

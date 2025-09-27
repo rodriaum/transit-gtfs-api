@@ -12,23 +12,28 @@ using Tranzor;
 using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Gtfs.Realtime;
+using Tranzor.Interfaces.MQTT;
 using Tranzor.Models.Config;
-using Tranzor.Models.Fiware;
-using Tranzor.Utils;
 
 public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<GtfsRealtimeCacheService> _logger;
+    private readonly IGtfsMqttRealtimeService _mqttService;
 
-    private static readonly ConcurrentDictionary<string, (FeedMessage feed, DateTime cachedAt)> _cache = new();
+    private static readonly ConcurrentDictionary<string, (FeedMessage feed, DateTime cachedAt)> _httpCache = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
 
-    public GtfsRealtimeCacheService(ILogger<GtfsRealtimeCacheService> logger)
+    public GtfsRealtimeCacheService(
+        ILogger<GtfsRealtimeCacheService> logger,
+        IGtfsMqttRealtimeService mqttService)
     {
         _httpClient = new HttpClient();
         _logger = logger;
+        _mqttService = mqttService;
     }
+
+    #region Class Functions
 
     public async Task<FeedMessage?> GetFeedAsync(GtfsDataRealtime gtfsData, string cacheKey, CancellationToken cancellationToken = default)
     {
@@ -40,53 +45,17 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         RealtimeFileType? fileType = gtfsData.RealtimeFileType;
         if (fileType == null) return null;
 
-        if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
-            return cached.feed;
-
-        SemaphoreSlim lockObj = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
-        await lockObj.WaitAsync(cancellationToken);
-
-        try
+        switch (fileType)
         {
-            if (_cache.TryGetValue(cacheKey, out cached) && DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
-                return cached.feed;
+            case RealtimeFileType.HTTP:
+                return await GetHttpFeedAsync(url, cacheKey, cancellationToken);
 
-            HttpResponseMessage response = await _httpClient.GetAsync(url, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            case RealtimeFileType.WebSocket:
+                return await GetWebSocketFeedAsync(gtfsData, cacheKey, cancellationToken);
 
-            FeedMessage? feed = null;
-
-            switch (fileType)
-            {
-                case RealtimeFileType.ProtocolBuffer:
-                    byte[] bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                    feed = FeedMessage.Parser.ParseFrom(bytes);
-                    break;
-
-                case RealtimeFileType.FiwareJson:
-                    List<FiwareVehicle>? vehicles = await response.Content.ReadFromJsonAsync<List<FiwareVehicle>>(cancellationToken);
-
-                    if (vehicles != null && vehicles.Any())
-                        feed = GtfsRealtimeUtil.ConvertToGtfsRealtimeFeed(vehicles);
-                    break;
-            }
-
-            if (feed != null)
-            {
-                _cache[cacheKey] = (feed, DateTime.UtcNow);
-            }
-
-            return feed;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Failed to fetch {url}: {ex.Message}");
-
-            return _cache.TryGetValue(cacheKey, out cached) ? cached.feed : null;
-        }
-        finally
-        {
-            lockObj.Release();
+            default:
+                _logger.LogWarning($"Unsupported file type: {fileType}");
+                return null;
         }
     }
 
@@ -309,8 +278,11 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 
         if (agencyId != null)
         {
+            GtfsDataRealtime? gtfsDataRealtime = GetGtfsDataRealtimeByAgency(agencyId, RealtimeType.TripUpdates);
+            if (gtfsDataRealtime == null) return null;
+
             FeedMessage? message = await GetFeedAsync(
-                GetGtfsDataRealtimeByAgency(agencyId, RealtimeType.TripUpdates),
+                gtfsDataRealtime,
                 $"trip_updates_{agencyId}",
                 cancellationToken
             );
@@ -323,8 +295,11 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         {
             foreach (GtfsData gtfsData in GtfsDataContext.GtfsDataList)
             {
+                GtfsDataRealtime? gtfsDataRealtime = GetGtfsDataRealtimeByAgency(gtfsData.AgencyId, RealtimeType.TripUpdates);
+                if (gtfsDataRealtime == null) continue;
+
                 FeedMessage? message = await GetFeedAsync(
-                    GetGtfsDataRealtimeByAgency(gtfsData.AgencyId, RealtimeType.TripUpdates),
+                    gtfsDataRealtime,
                     $"trip_updates_{gtfsData.AgencyId}",
                     cancellationToken
                 );
@@ -384,6 +359,90 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
         return result;
     }
 
+    #endregion
+    #region Helper Functions
+
+    private async Task<FeedMessage?> GetHttpFeedAsync(string url, string cacheKey, CancellationToken cancellationToken)
+    {
+        if (_httpCache.TryGetValue(cacheKey, out var cached) &&
+            DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
+        {
+            return cached.feed;
+        }
+
+        SemaphoreSlim lockObj = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+        await lockObj.WaitAsync(cancellationToken);
+
+        try
+        {
+            if (_httpCache.TryGetValue(cacheKey, out cached) &&
+                DateTime.UtcNow - cached.cachedAt < Constant.CacheDuration)
+            {
+                return cached.feed;
+            }
+
+            _logger.LogDebug($"Fetching HTTP feed from: {url}");
+
+            HttpResponseMessage response = await _httpClient.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            byte[] bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            FeedMessage feed = FeedMessage.Parser.ParseFrom(bytes);
+
+            if (feed != null)
+            {
+                _httpCache[cacheKey] = (feed, DateTime.UtcNow);
+                _logger.LogDebug($"HTTP feed cached for {cacheKey}: {feed.Entity.Count} entities");
+            }
+
+            return feed;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Failed to fetch HTTP feed from {url}: {ex.Message}");
+
+            return _httpCache.TryGetValue(cacheKey, out cached) ? cached.feed : null;
+        }
+        finally
+        {
+            lockObj.Release();
+        }
+    }
+
+    private async Task<FeedMessage?> GetWebSocketFeedAsync(GtfsDataRealtime gtfsData, string cacheKey, CancellationToken cancellationToken)
+    {
+        try
+        {
+            RealtimeType realtimeType = DetermineRealtimeType(cacheKey);
+
+            if (!_mqttService.IsConnected(cacheKey))
+            {
+                await _mqttService.StartConnectionAsync(gtfsData, cacheKey, realtimeType, cancellationToken);
+            }
+
+            return await _mqttService.GetRealtimeFeedAsync(cacheKey, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Failed to get WebSocket feed for {cacheKey}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private RealtimeType DetermineRealtimeType(string cacheKey)
+    {
+        if (cacheKey.Contains("vehicle_positions"))
+            return RealtimeType.VehiclePositions;
+
+        if (cacheKey.Contains("trip_updates"))
+            return RealtimeType.TripUpdates;
+
+        if (cacheKey.Contains("alerts"))
+            return RealtimeType.ServiceAlerts;
+
+        return RealtimeType.VehiclePositions;
+    }
+
     public GtfsDataRealtime? GetGtfsDataRealtimeByAgency(string agencyId, RealtimeType type)
     {
         foreach (GtfsData data in GtfsDataContext.GtfsDataList)
@@ -399,4 +458,6 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 
         return null;
     }
+
+    #endregion
 }

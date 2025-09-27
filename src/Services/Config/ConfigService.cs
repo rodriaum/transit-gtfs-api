@@ -46,6 +46,10 @@ public class ConfigService : IConfigService
                 {
                     GtfsDataContext.GtfsDataList = gtfsDataList;
                 }
+                else
+                {
+                    _logger.LogWarning("Could not import gtfs data because it returned null when converting.");
+                }
             }
             else
             {
@@ -54,7 +58,7 @@ public class ConfigService : IConfigService
                 Thread.Sleep(2500);
             }
 
-                GtfsDataContext.Config = config;
+            GtfsDataContext.Config = config;
             GtfsDataContext.Finish = true;
         }
         catch (Exception ex)
