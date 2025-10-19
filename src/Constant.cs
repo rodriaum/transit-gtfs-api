@@ -31,7 +31,9 @@ public class Constant
         "POSTGRES_DATABASE_NAME",
         "REDIS_INSTANCE_NAME",
         "API_TOKEN",
-        "OTP_URL"
+        "OTP_URL",
+        "CASSANDRA_CONTACT_POINTS",
+        "CASSANDRA_KEYSPACE"
     ];
 
     public static readonly string[] RequiredFiles =

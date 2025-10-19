@@ -16,7 +16,6 @@ public class GTFSContext : DbContext
     public DbSet<Models.Route> Routes { get; set; }
     public DbSet<Shape> Shapes { get; set; }
     public DbSet<Stop> Stops { get; set; }
-    public DbSet<StopTime> StopTimes { get; set; }
     public DbSet<Transfer> Transfers { get; set; }
     public DbSet<Trip> Trips { get; set; }
     public DbSet<FeedInfo> FeedInfos { get; set; }
@@ -41,7 +40,6 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<Models.Route>().ToTable("gtfs_routes");
         modelBuilder.Entity<Shape>().ToTable("gtfs_shapes");
         modelBuilder.Entity<Stop>().ToTable("gtfs_stops");
-        modelBuilder.Entity<StopTime>().ToTable("gtfs_stop_times");
         modelBuilder.Entity<Transfer>().ToTable("gtfs_transfers");
         modelBuilder.Entity<Trip>().ToTable("gtfs_trips");
         modelBuilder.Entity<FeedInfo>().ToTable("gtfs_feed_info");
@@ -64,7 +62,6 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<Models.Route>().HasKey(e => e.Id);
         modelBuilder.Entity<Shape>().HasKey(e => e.Id);
         modelBuilder.Entity<Stop>().HasKey(e => e.Id);
-        modelBuilder.Entity<StopTime>().HasKey(e => e.Id);
         modelBuilder.Entity<Transfer>().HasKey(e => e.Id);
         modelBuilder.Entity<Trip>().HasKey(e => e.Id);
         modelBuilder.Entity<FeedInfo>().HasKey(e => e.Id);
@@ -87,8 +84,6 @@ public class GTFSContext : DbContext
         modelBuilder.Entity<Models.Route>().HasIndex(e => e.RouteId);
         modelBuilder.Entity<Shape>().HasIndex(e => e.ShapeId);
         modelBuilder.Entity<Stop>().HasIndex(e => e.StopId);
-        modelBuilder.Entity<StopTime>().HasIndex(e => e.TripId);
-        modelBuilder.Entity<StopTime>().HasIndex(e => e.StopId);
         modelBuilder.Entity<Transfer>().HasIndex(e => e.FromStopId);
         modelBuilder.Entity<Transfer>().HasIndex(e => e.ToStopId);
         modelBuilder.Entity<Trip>().HasIndex(e => e.TripId);

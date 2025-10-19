@@ -45,11 +45,11 @@ public class GtfsFileService : IGtfsFileService
             if (gtfsData.GetExpireAtDateOnly().HasValue && gtfsData.GetExpireAtDateOnly() > DateOnly.FromDateTime(DateTime.Now))
             {
                 _logger.LogWarning(
-                    "It is not possible to export the GTFS data from operator {0} because it expired on {1}.",
+                    "It is not possible to export the GTFS data from operator {0} because it expired at {1}.",
                     agencyId,
                     gtfsData.GetExpireAtDateOnly()?.ToShortDateString()
                 );
-                continue;
+                //continue;
             }
 
             if (!Directory.Exists(providerDirectory))

@@ -21,6 +21,7 @@ using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Interfaces.Http;
 using Tranzor.Interfaces.MQTT;
 using Tranzor.Services.Config;
+using Tranzor.Services.Database;
 using Tranzor.Services.External;
 using Tranzor.Services.Gtfs;
 using Tranzor.Services.Gtfs.Realtime;
@@ -237,6 +238,9 @@ public class Startup
                 .UseNpgsql(fullConnection, o => o.UseNetTopologySuite())
                 .UseSnakeCaseNamingConvention();
         });
+
+        services.AddScoped<IPostgresService, PostgresService>();
+        services.AddSingleton<ICassandraService, CassandraService>();
     }
 
     private void ConfigureCacheServices(IServiceCollection services)
@@ -356,9 +360,35 @@ public class Startup
     {
         IConfigService configService = serviceProvider.GetRequiredService<IConfigService>();
         IGtfsDataService gtfsDataService = serviceProvider.GetRequiredService<IGtfsDataService>();
+        ICassandraService cassandraService = serviceProvider.GetRequiredService<ICassandraService>();
 
         try
         {
+            // Inicializar PostgreSQL
+            using (var scope = serviceProvider.CreateScope())
+            {
+                var postgresService = scope.ServiceProvider.GetRequiredService<IPostgresService>();
+                postgresService.InitializeAsync().Wait();
+            }
+
+            // Inicializar Redis
+            var redisService = serviceProvider.GetRequiredService<IRedisService>();
+            Task.Run(async () =>
+            {
+                bool isAvailable = await redisService.IsRedisAvailable();
+                if (isAvailable)
+                {
+                    logger.LogInformation("[Redis] Connection verified successfully");
+                }
+                else
+                {
+                    logger.LogWarning("[Redis] Not available, caching will be disabled");
+                }
+            }).Wait();
+
+            // Inicializar Cassandra
+            cassandraService.InitializeAsync().Wait();
+
             configService.InitializeAsync().Wait();
 
             if (!GtfsDataContext.Finish)
@@ -368,7 +398,7 @@ public class Startup
         }
         catch (Exception ex)
         {
-            logger.LogError($"Unable to configure GTFS data service.\n -> {ex.Message}");
+            logger.LogError($"Unable to start the system.\n -> {ex.Message}");
             Task.Delay(5000).Wait();
             Environment.Exit(0);
         }
