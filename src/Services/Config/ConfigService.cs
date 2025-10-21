@@ -70,13 +70,7 @@ public class ConfigService : IConfigService
 
     private (bool, string) VerifyConfigFileIntegrity(string file)
     {
-        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string? path = Path.Combine(baseDirectory, Constant.ConfigPath, file);
-
-        if (File.Exists(path))
-            return (true, path);
-
-        path = Path.Combine(baseDirectory, "..", "..", "..", "..", Constant.ConfigPath, file);
+        string? path = FileUtil.ResolvePath(Path.Combine(Constant.ConfigPath, file));
 
         if (File.Exists(path))
             return (true, path);

@@ -1,5 +1,7 @@
+using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Tranzor.Utils;
 
 namespace Tranzor.Context;
 
@@ -7,20 +9,11 @@ public class GtfsDbContextFactory : IDesignTimeDbContextFactory<GtfsDbContext>
 {
     public GtfsDbContext CreateDbContext(string[] args)
     {
-        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string envPath = Path.Combine(baseDirectory, ".env");
+        string? path = FileUtil.ResolvePath(".env");
 
-        if (File.Exists(envPath))
+        if (!string.IsNullOrEmpty(path) && File.Exists(path))
         {
-            DotNetEnv.Env.Load(envPath);
-        }
-        else
-        {
-            string rootPath = Path.Combine(baseDirectory, "..", "..", "..", "..", ".env");
-            if (File.Exists(rootPath))
-            {
-                DotNetEnv.Env.Load(rootPath);
-            }
+            Env.Load(path);
         }
 
         DbContextOptionsBuilder<GtfsDbContext> optionsBuilder = new DbContextOptionsBuilder<GtfsDbContext>();

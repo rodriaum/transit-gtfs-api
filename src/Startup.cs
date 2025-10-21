@@ -28,6 +28,7 @@ using Tranzor.Services.Gtfs.Static;
 using Tranzor.Services.Http;
 using Tranzor.Services.MQTT;
 using Tranzor.Services.OTP;
+using Tranzor.Utils;
 
 namespace Tranzor;
 
@@ -35,32 +36,18 @@ public class Startup
 {
     public Startup(IConfiguration configuration)
     {
-        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string envPath = Path.Combine(baseDirectory, ".env");
+        string? path = FileUtil.ResolvePath(".env");
 
-        Log.Information("Trying to load environment file from bin directory.");
-
-        if (File.Exists(envPath))
+        if (!string.IsNullOrEmpty(path) && File.Exists(path))
         {
-            Env.Load(envPath);
-            Log.Information("environment file found and loaded successfully.");
+            Env.Load(path);
+            Log.Information("Environment file found and loaded successfully.");
         }
         else
         {
-            string rootPath = Path.Combine(baseDirectory, "..", "..", "..", "..", ".env");
-            Log.Information("Trying to load from root directory.");
-
-            if (File.Exists(rootPath))
-            {
-                Env.Load(rootPath);
-                Log.Information("Environment file found and loaded successfully.");
-            }
-            else
-            {
-                Log.Error("ERROR: environment file not found in any location...");
-                Log.Information("Please create a environment file in the project root");
-                Environment.Exit(1);
-            }
+            Log.Error("ERROR: environment file not found in any location...");
+            Log.Information("Please create a environment file in the project root");
+            Environment.Exit(1);
         }
 
         Configuration = configuration;
@@ -127,21 +114,21 @@ public class Startup
         });
 
         services.AddControllers(options =>
-        {
-            options.Filters.Add<ValidateModelStateFilter>();
-            options.Filters.Add<SanitizeInputFilter>();
-            options.CacheProfiles.Add("Default", new CacheProfile
             {
-                Duration = 60,
-                Location = ResponseCacheLocation.Any
+                options.Filters.Add<ValidateModelStateFilter>();
+                options.Filters.Add<SanitizeInputFilter>();
+                options.CacheProfiles.Add("Default", new CacheProfile
+                {
+                    Duration = 60,
+                    Location = ResponseCacheLocation.Any
+                });
+            })
+            .AddJsonOptions(opts =>
+            {
+                opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
+                opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                opts.JsonSerializerOptions.MaxDepth = 64;
             });
-        })
-        .AddJsonOptions(opts =>
-        {
-            opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
-            opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            opts.JsonSerializerOptions.MaxDepth = 64;
-        });
 
         services.AddResponseCaching();
 
@@ -180,31 +167,35 @@ public class Startup
     private void ConfigureSecurityServices(IServiceCollection services)
     {
         services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
-        {
-            options.TokenValidationParameters = new TokenValidationParameters
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ClockSkew = TimeSpan.Zero
-            };
-        });
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
 
         services.AddCors(options =>
         {
             options.AddDefaultPolicy(builder =>
             {
-                builder.WithOrigins(Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
-                       .WithMethods(Configuration.GetSection("Cors:AllowedMethods").Get<string[]>() ?? Array.Empty<string>())
-                       .WithHeaders(Configuration.GetSection("Cors:AllowedHeaders").Get<string[]>() ?? Array.Empty<string>())
-                       .WithExposedHeaders(Configuration.GetSection("Cors:ExposedHeaders").Get<string[]>() ?? Array.Empty<string>())
-                       .SetPreflightMaxAge(TimeSpan.FromSeconds(Configuration.GetValue<int>("Cors:MaxAge", 3600)));
+                builder.WithOrigins(Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ??
+                                    Array.Empty<string>())
+                    .WithMethods(Configuration.GetSection("Cors:AllowedMethods").Get<string[]>() ??
+                                 Array.Empty<string>())
+                    .WithHeaders(Configuration.GetSection("Cors:AllowedHeaders").Get<string[]>() ??
+                                 Array.Empty<string>())
+                    .WithExposedHeaders(Configuration.GetSection("Cors:ExposedHeaders").Get<string[]>() ??
+                                        Array.Empty<string>())
+                    .SetPreflightMaxAge(TimeSpan.FromSeconds(Configuration.GetValue<int>("Cors:MaxAge", 3600)));
             });
         });
 
@@ -306,7 +297,8 @@ public class Startup
         });
     }
 
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider serviceProvider, ILogger<Startup> logger)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider serviceProvider,
+        ILogger<Startup> logger)
     {
         ValidateEnvironmentVariables(logger);
 
@@ -372,7 +364,7 @@ public class Startup
 
             // Start Redis
             IRedisService redisService = serviceProvider.GetRequiredService<IRedisService>();
-            
+
             Task.Run(async () =>
             {
                 bool isAvailable = await redisService.IsRedisAvailable();
