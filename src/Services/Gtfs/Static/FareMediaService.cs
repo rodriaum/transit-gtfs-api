@@ -34,7 +34,7 @@ public class FareMediaService : IFareMediaService
             await _gtfsDbContext.Set<FareMedia>().Select(f => f.FareMediaId.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<FareMedia> entities = new List<FareMedia>();
         int totalIgnored = 0;
 

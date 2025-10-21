@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Compression;
 using Tranzor.Context;
 using Tranzor.Interfaces.Gtfs;
@@ -42,14 +43,19 @@ public class GtfsFileService : IGtfsFileService
             string agencyId = gtfsData.AgencyId;
             string providerDirectory = Path.Combine(Constant.ExtractPath, agencyId);
 
-            if (gtfsData.GetExpireAtDateOnly().HasValue && gtfsData.GetExpireAtDateOnly() > DateOnly.FromDateTime(DateTime.Now))
+            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" };
+
+            if (!string.IsNullOrEmpty(gtfsData.GtfsExpireAt) &&
+                DateTime.TryParseExact(gtfsData.GtfsExpireAt, formats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out DateTime date) &&
+                DateTime.Now > date)
             {
                 _logger.LogWarning(
                     "It is not possible to export the GTFS data from operator {0} because it expired at {1}.",
                     agencyId,
-                    gtfsData.GetExpireAtDateOnly()?.ToShortDateString()
+                    date.ToShortDateString()
                 );
-                //continue;
+                continue;
             }
 
             if (!Directory.Exists(providerDirectory))
@@ -64,7 +70,7 @@ public class GtfsFileService : IGtfsFileService
             if (needsDownload)
             {
                 //_logger.LogInformation("Downloading and extracting GTFS data from {0} to {1}", gtfsUrl, providerDirectory);
-                _logger.LogInformation("Downloading and extracting GTFS data from agency {0}.", agencyId);
+                _logger.LogInformation("Downloading GTFS data from agency {0}", agencyId);
                 string tempZipPath = Path.Combine(Constant.TempDownloadFolder, $"gtfs_{i + 1}.zip");
 
                 if (!Directory.Exists(Constant.TempDownloadFolder))
@@ -118,7 +124,7 @@ public class GtfsFileService : IGtfsFileService
     }
 
     private bool AreRequiredFilesPresent(string directoryPath, List<string> ignoredFiles) =>
-         Constant.RequiredFiles
+        Constant.RequiredFiles
             .Where(file => !ignoredFiles.Exists(it => it.StartsWith(file)))
             .All(file => File.Exists(Path.Combine(directoryPath, file)));
 

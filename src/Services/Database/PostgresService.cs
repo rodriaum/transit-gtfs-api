@@ -140,7 +140,11 @@ public class PostgresService : IPostgresService
 
             for (int i = 0; i < entities.Count; i += batch)
             {
-                List<TEntity> batchEntities = entities.Skip(i).Take(batch).ToList();
+                List<TEntity> batchEntities = entities
+                    .Skip(i)
+                    .Take(batch)
+                    .ToList();
+                
                 await _gtfsDbContext.BulkInsertAsync(batchEntities);
                 totalImported += batchEntities.Count;
             }

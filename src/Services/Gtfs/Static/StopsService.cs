@@ -83,7 +83,7 @@ public class StopsService : IStopsService
         );
 
         List<City> cities = await _gtfsDbContext.Cities.ToListAsync();
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
 
         List<Stop> entities = new List<Stop>();
         List<StopCity> stopCities = new List<StopCity>();

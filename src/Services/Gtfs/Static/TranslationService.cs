@@ -36,7 +36,7 @@ public class TranslationService : ITranslationService
                 (t.RecordId ?? "")).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<AgencyTranslation> entities = new List<AgencyTranslation>();
         int totalIgnored = 0;
 

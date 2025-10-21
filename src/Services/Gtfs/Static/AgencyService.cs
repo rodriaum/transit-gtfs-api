@@ -39,7 +39,7 @@ public class AgencyService : IAgencyService
             await _gtfsDbContext.Agencies.Select(a => a.AgencyId.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<Agency> entities = new List<Agency>();
         int totalIgnored = 0;
 

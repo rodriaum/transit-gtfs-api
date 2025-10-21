@@ -35,7 +35,7 @@ public class FeedInfoService : IFeedInfoService
                 .Select(f => f.FeedPublisherName.ToLower() + ":" + f.FeedPublisherUrl.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<FeedInfo> entities = new List<FeedInfo>();
         int totalIgnored = 0;
 

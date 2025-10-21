@@ -40,7 +40,7 @@ public class CalendarService : ICalendarService
             await _gtfsDbContext.Calendars.Select(c => c.ServiceId.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<Calendar> entities = new List<Calendar>();
         int totalIgnored = 0;
 

@@ -170,7 +170,7 @@ public class GtfsDataService : IGtfsDataService
                     continue;
                 }
 
-                _logger.LogInformation("Importing GTFS data from {0} (Agency: {1})", gtfsDirectoryPath, agencyId);
+                _logger.LogInformation("Importing GTFS data from agency {0}", agencyId);
 
                 /*
                 * Because agencies are very creative with their agency_id, such as SUPER Creative values like "1", "2"
@@ -246,7 +246,7 @@ public class GtfsDataService : IGtfsDataService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading data from GTFS files");
+            throw new Exception("Error loading data from GTFS files", ex);
         }
         finally
         {

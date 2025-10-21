@@ -38,7 +38,7 @@ public class TransfersService : ITransfersService
             await _gtfsDbContext.Transfers.Select(t => t.FromStopId.ToLower() + ":" + t.ToStopId.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<Transfer> entities = new List<Transfer>();
         int totalIgnored = 0;
 

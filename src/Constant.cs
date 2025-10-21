@@ -17,7 +17,7 @@ public class Constant
     public const string Version = "1.0.0";
 
     public const int SqlBatchSizeImport = 1000;
-    public const int CassandraBatchSizeImport = 25;
+    public const int CassandraBatchSizeImport = 15;
 
     public static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
 

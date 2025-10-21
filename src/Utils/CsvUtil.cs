@@ -1,8 +1,7 @@
 ﻿namespace Tranzor.Utils;
 
-public static class CsvImportUtil
+public static class CsvUtil
 {
-
     /// <summary>
     /// Read all lines from a CSV file and return as a list of dictionaries
     /// </summary>
@@ -21,8 +20,6 @@ public static class CsvImportUtil
 
         try
         {
-            logger.LogInformation("Reading CSV file: {FilePath}", filePath);
-
             using StreamReader reader = new StreamReader(filePath);
             string? headerLine = await reader.ReadLineAsync();
 
@@ -52,8 +49,7 @@ public static class CsvImportUtil
 
                 rows.Add(rowData);
             }
-
-            logger.LogInformation("Read {Count} rows from {FilePath}", rows.Count, filePath);
+            
             return rows;
         }
         catch (Exception ex)

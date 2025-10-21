@@ -22,11 +22,4 @@ public class GtfsData
 
     [JsonPropertyName("realtime_urls")]
     public Dictionary<RealtimeType, GtfsDataRealtime>? RealtimeUrls { get; set; }
-
-    public DateOnly? GetExpireAtDateOnly()
-    {
-        return string.IsNullOrEmpty(this.GtfsExpireAt)
-            ? null
-            : DateOnly.Parse(this.GtfsExpireAt);
-    }
 }

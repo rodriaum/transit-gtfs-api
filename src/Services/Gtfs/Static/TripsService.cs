@@ -62,7 +62,7 @@ public class TripsService : ITripsService
             await _gtfsDbContext.Trips.Select(t => t.TripId.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<Trip> entities = new List<Trip>();
 
         int totalIgnored = 0;

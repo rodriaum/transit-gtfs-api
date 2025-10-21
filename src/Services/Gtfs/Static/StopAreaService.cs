@@ -33,7 +33,7 @@ public class StopAreaService : IStopAreaService
             await _gtfsDbContext.Set<StopArea>().Select(s => s.StopAreaId.ToLower()).ToListAsync()
         );
 
-        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
         List<StopArea> entities = new List<StopArea>();
         int totalIgnored = 0;
 
