@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class RoutesService : IRoutesService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<RoutesService> _logger;
     private readonly IRedisService _redis;
 
-    public RoutesService(GtfsDbContext gtfsDBContext, ILogger<RoutesService> logger, IRedisService redis)
+    public RoutesService(GtfsDbContext gtfsDbContext, ILogger<RoutesService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Models.Route>> GetAllAsync()
     {
-        return await _gtfsDBContext.Routes.ToListAsync();
+        return await _gtfsDbContext.Routes.ToListAsync();
     }
 
     public async Task<Models.Route?> GetByIdAsync(string routeId)
     {
         return await _redis.GetOrSetAsync(
             $"route-{routeId}",
-            async () => await _gtfsDBContext.Routes.FirstOrDefaultAsync(r => r.RouteId == routeId)
+            async () => await _gtfsDbContext.Routes.FirstOrDefaultAsync(r => r.RouteId == routeId)
         );
     }
 
@@ -55,7 +55,7 @@ public class RoutesService : IRoutesService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Routes.Select(r => r.RouteId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Routes.Select(r => r.RouteId.ToLower()).ToListAsync()
             );
 
             List<Models.Route> entities = new List<Models.Route>(batchSize);
@@ -125,7 +125,7 @@ public class RoutesService : IRoutesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -133,7 +133,7 @@ public class RoutesService : IRoutesService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

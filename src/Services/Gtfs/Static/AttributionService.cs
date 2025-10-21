@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class AttributionService : IAttributionService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<AttributionService> _logger;
     private readonly IRedisService _redis;
 
-    public AttributionService(GtfsDbContext gtfsDBContext, ILogger<AttributionService> logger, IRedisService redis)
+    public AttributionService(GtfsDbContext gtfsDbContext, ILogger<AttributionService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Attribution>> GetAllAsync()
     {
-        return await _gtfsDBContext.Set<Attribution>().ToListAsync();
+        return await _gtfsDbContext.Set<Attribution>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath, string agencyId)
@@ -47,7 +47,7 @@ public class AttributionService : IAttributionService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Set<Attribution>().Select(a => (a.AgencyId ?? "") + ":" + (a.RouteId ?? "") + ":" + (a.TripId ?? "") + ":" + a.OrganizationName.ToLower()).ToListAsync()
+                await _gtfsDbContext.Set<Attribution>().Select(a => (a.AgencyId ?? "") + ":" + (a.RouteId ?? "") + ":" + (a.TripId ?? "") + ":" + a.OrganizationName.ToLower()).ToListAsync()
             );
 
             List<Attribution> entities = new List<Attribution>(batchSize);
@@ -110,7 +110,7 @@ public class AttributionService : IAttributionService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -118,7 +118,7 @@ public class AttributionService : IAttributionService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

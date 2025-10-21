@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class TranslationService : ITranslationService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<TranslationService> _logger;
     private readonly IRedisService _redis;
 
-    public TranslationService(GtfsDbContext gtfsDBContext, ILogger<TranslationService> logger, IRedisService redis)
+    public TranslationService(GtfsDbContext gtfsDbContext, ILogger<TranslationService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<AgencyTranslation>> GetAllAsync()
     {
-        return await _gtfsDBContext.Set<AgencyTranslation>().ToListAsync();
+        return await _gtfsDbContext.Set<AgencyTranslation>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -47,7 +47,7 @@ public class TranslationService : ITranslationService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Set<AgencyTranslation>().Select(t => t.TableName.ToLower() + ":" + t.FieldName.ToLower() + ":" + t.Language.ToLower() + ":" + (t.RecordId ?? "")).ToListAsync()
+                await _gtfsDbContext.Set<AgencyTranslation>().Select(t => t.TableName.ToLower() + ":" + t.FieldName.ToLower() + ":" + t.Language.ToLower() + ":" + (t.RecordId ?? "")).ToListAsync()
             );
 
             List<AgencyTranslation> entities = new List<AgencyTranslation>(batchSize);
@@ -107,7 +107,7 @@ public class TranslationService : ITranslationService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -115,7 +115,7 @@ public class TranslationService : ITranslationService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

@@ -12,13 +12,13 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class TripsService : ITripsService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<TripsService> _logger;
     private readonly IRedisService _redis;
 
-    public TripsService(GtfsDbContext gtfsDBContext, ILogger<TripsService> logger, IRedisService redis)
+    public TripsService(GtfsDbContext gtfsDbContext, ILogger<TripsService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
@@ -26,14 +26,14 @@ public class TripsService : ITripsService
     public async Task<List<Trip>> GetAllAsync(int page = 1, int pageSize = 100)
     {
         int skip = (page - 1) * pageSize;
-        return await _gtfsDBContext.Trips.Skip(skip).Take(pageSize).ToListAsync();
+        return await _gtfsDbContext.Trips.Skip(skip).Take(pageSize).ToListAsync();
     }
 
     public async Task<Trip?> GetByIdAsync(string tripId)
     {
         return await _redis.GetOrSetAsync(
             $"trip-{tripId}",
-            async () => await _gtfsDBContext.Trips.FirstOrDefaultAsync(t => t.TripId == tripId)
+            async () => await _gtfsDbContext.Trips.FirstOrDefaultAsync(t => t.TripId == tripId)
         );
     }
 
@@ -44,7 +44,7 @@ public class TripsService : ITripsService
             async () =>
             {
                 var skip = (page - 1) * pageSize;
-                return await _gtfsDBContext.Trips.Where(t => t.RouteId == routeId)
+                return await _gtfsDbContext.Trips.Where(t => t.RouteId == routeId)
                                              .Skip(skip)
                                              .Take(pageSize)
                                              .ToListAsync();
@@ -58,7 +58,7 @@ public class TripsService : ITripsService
             $"trips-batch-{string.Join("-", tripIds.OrderBy(id => id))}",
             async () =>
             {
-                List<Trip> trips = await _gtfsDBContext.Trips
+                List<Trip> trips = await _gtfsDbContext.Trips
                     .Where(t => tripIds.Contains(t.TripId))
                     .ToListAsync();
 
@@ -93,7 +93,7 @@ public class TripsService : ITripsService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Trips.Select(t => t.TripId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Trips.Select(t => t.TripId.ToLower()).ToListAsync()
             );
 
             List<Trip> entities = new List<Trip>(batchSize);
@@ -157,7 +157,7 @@ public class TripsService : ITripsService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -165,7 +165,7 @@ public class TripsService : ITripsService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

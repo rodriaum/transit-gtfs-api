@@ -13,27 +13,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class ShapesService : IShapesService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<ShapesService> _logger;
     private readonly IRedisService _redis;
 
-    public ShapesService(GtfsDbContext gtfsDBContext, ILogger<ShapesService> logger, IRedisService redis)
+    public ShapesService(GtfsDbContext gtfsDbContext, ILogger<ShapesService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Shape>> GetAllAsync()
     {
-        return await _gtfsDBContext.Shapes.ToListAsync();
+        return await _gtfsDbContext.Shapes.ToListAsync();
     }
 
     public async Task<List<Shape>?> GetByShapeIdAsync(string shapeId)
     {
         return await _redis.GetOrSetAsync(
             $"shapes-{shapeId}",
-            async () => await _gtfsDBContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync()
+            async () => await _gtfsDbContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync()
         );
     }
 
@@ -57,7 +57,7 @@ public class ShapesService : IShapesService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
             );
 
             List<Shape> entities = new List<Shape>(batchSize);
@@ -116,7 +116,7 @@ public class ShapesService : IShapesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -124,7 +124,7 @@ public class ShapesService : IShapesService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

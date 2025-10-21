@@ -6,12 +6,12 @@ namespace Tranzor.Services.Database;
 
 public class PostgresService : IPostgresService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<PostgresService> _logger;
 
-    public PostgresService(GtfsDbContext gtfsDBContext, ILogger<PostgresService> logger)
+    public PostgresService(GtfsDbContext gtfsDbContext, ILogger<PostgresService> logger)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         
         LogPostgresConfiguration();
@@ -51,7 +51,7 @@ public class PostgresService : IPostgresService
         {
             _logger.LogInformation("[PostgreSQL] Checking database connection...");
             
-            bool canConnect = await _gtfsDBContext.Database.CanConnectAsync();
+            bool canConnect = await _gtfsDbContext.Database.CanConnectAsync();
             
             if (!canConnect)
             {
@@ -61,7 +61,7 @@ public class PostgresService : IPostgresService
 
             _logger.LogInformation("[PostgreSQL] Connection established successfully");
 
-            var pendingMigrations = await _gtfsDBContext.Database.GetPendingMigrationsAsync();
+            var pendingMigrations = await _gtfsDbContext.Database.GetPendingMigrationsAsync();
             var pendingCount = pendingMigrations.Count();
 
             if (pendingCount > 0)
@@ -76,7 +76,7 @@ public class PostgresService : IPostgresService
                 _logger.LogInformation("[PostgreSQL] Database schema is up to date");
             }
 
-            var appliedMigrations = await _gtfsDBContext.Database.GetAppliedMigrationsAsync();
+            var appliedMigrations = await _gtfsDbContext.Database.GetAppliedMigrationsAsync();
             var appliedCount = appliedMigrations.Count();
             
             _logger.LogInformation("[PostgreSQL] Total migrations applied: {Count}", appliedCount);
@@ -96,10 +96,10 @@ public class PostgresService : IPostgresService
     {
         try
         {
-            var agenciesCount = await _gtfsDBContext.Agencies.CountAsync();
-            var routesCount = await _gtfsDBContext.Routes.CountAsync();
-            var stopsCount = await _gtfsDBContext.Stops.CountAsync();
-            var tripsCount = await _gtfsDBContext.Trips.CountAsync();
+            var agenciesCount = await _gtfsDbContext.Agencies.CountAsync();
+            var routesCount = await _gtfsDbContext.Routes.CountAsync();
+            var stopsCount = await _gtfsDbContext.Stops.CountAsync();
+            var tripsCount = await _gtfsDbContext.Trips.CountAsync();
 
             _logger.LogInformation("[PostgreSQL] Database statistics - Agencies: {Agencies}, Routes: {Routes}, Stops: {Stops}, Trips: {Trips}",
                 agenciesCount, routesCount, stopsCount, tripsCount);

@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class NetworkService : INetworkService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<NetworkService> _logger;
     private readonly IRedisService _redis;
 
-    public NetworkService(GtfsDbContext gtfsDBContext, ILogger<NetworkService> logger, IRedisService redis)
+    public NetworkService(GtfsDbContext gtfsDbContext, ILogger<NetworkService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Network>> GetAllAsync()
     {
-        return await _gtfsDBContext.Set<Network>().ToListAsync();
+        return await _gtfsDbContext.Set<Network>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -47,7 +47,7 @@ public class NetworkService : INetworkService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Set<Network>().Select(n => n.NetworkId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Set<Network>().Select(n => n.NetworkId.ToLower()).ToListAsync()
             );
 
             List<Network> entities = new List<Network>(batchSize);
@@ -101,7 +101,7 @@ public class NetworkService : INetworkService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -109,7 +109,7 @@ public class NetworkService : INetworkService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

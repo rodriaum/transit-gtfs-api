@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FeedInfoService : IFeedInfoService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<FeedInfoService> _logger;
     private readonly IRedisService _redis;
 
-    public FeedInfoService(GtfsDbContext gtfsDBContext, ILogger<FeedInfoService> logger, IRedisService redis)
+    public FeedInfoService(GtfsDbContext gtfsDbContext, ILogger<FeedInfoService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FeedInfo>> GetAllAsync()
     {
-        return await _gtfsDBContext.Set<FeedInfo>().ToListAsync();
+        return await _gtfsDbContext.Set<FeedInfo>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -47,7 +47,7 @@ public class FeedInfoService : IFeedInfoService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Set<FeedInfo>().Select(f => f.FeedPublisherName.ToLower() + ":" + f.FeedPublisherUrl.ToLower()).ToListAsync()
+                await _gtfsDbContext.Set<FeedInfo>().Select(f => f.FeedPublisherName.ToLower() + ":" + f.FeedPublisherUrl.ToLower()).ToListAsync()
             );
 
             List<FeedInfo> entities = new List<FeedInfo>(batchSize);
@@ -107,7 +107,7 @@ public class FeedInfoService : IFeedInfoService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -115,7 +115,7 @@ public class FeedInfoService : IFeedInfoService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

@@ -1,5 +1,5 @@
-﻿using MQTTnet;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
+using MQTTnet;
 using TransitRealtime;
 using Tranzor.Enums;
 using Tranzor.Interfaces.MQTT;

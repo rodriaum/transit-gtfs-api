@@ -14,20 +14,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class StopTimesService : IStopTimesService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ICassandraService _cassandraService;
     private readonly ILogger<StopTimesService> _logger;
     private readonly IRedisService _redis;
     private readonly IGtfsRealtimeCacheService _realtimeService;
 
     public StopTimesService(
-        GtfsDbContext gtfsDBContext,
+        GtfsDbContext gtfsDbContext,
         ICassandraService cassandraService,
         ILogger<StopTimesService> logger,
         IRedisService redis,
         IGtfsRealtimeCacheService realtimeService)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _cassandraService = cassandraService;
         _logger = logger;
         _redis = redis;
@@ -42,17 +42,17 @@ public class StopTimesService : IStopTimesService
 
         string sqlDate = date.ToString("yyyy-MM-dd");
 
-        IQueryable<string> calendarQuery = _gtfsDBContext.Calendars
+        IQueryable<string> calendarQuery = _gtfsDbContext.Calendars
             .Where(c => EF.Functions.ToDate(EF.Property<string>(c, "StartDate"), "YYYYMMDD") <= dateOnly &&
                         EF.Functions.ToDate(EF.Property<string>(c, "EndDate"), "YYYYMMDD") >= dateOnly &&
                         EF.Property<int>(c, dayColumn) == (int)StatusType.Active)
             .Select(c => c.ServiceId);
 
         return calendarQuery
-            .Union(_gtfsDBContext.CalendarDates
+            .Union(_gtfsDbContext.CalendarDates
                 .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
                 .Select(cd => cd.ServiceId))
-            .Except(_gtfsDBContext.CalendarDates
+            .Except(_gtfsDbContext.CalendarDates
                 .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
                 .Select(cd => cd.ServiceId));
     }
@@ -93,7 +93,7 @@ public class StopTimesService : IStopTimesService
                 {
                     List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
 
-                    Trip? trip = await _gtfsDBContext.Trips
+                    Trip? trip = await _gtfsDbContext.Trips
                         .Where(t => t.TripId == tripId && activeServiceIds.Contains(t.ServiceId))
                         .FirstOrDefaultAsync();
 
@@ -148,7 +148,7 @@ public class StopTimesService : IStopTimesService
                 if (!ignoreCalendar)
                 {
                     List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
-                    List<string> activeTripIds = await _gtfsDBContext.Trips
+                    List<string> activeTripIds = await _gtfsDbContext.Trips
                         .Where(t => activeServiceIds.Contains(t.ServiceId))
                         .Select(t => t.TripId)
                         .ToListAsync();

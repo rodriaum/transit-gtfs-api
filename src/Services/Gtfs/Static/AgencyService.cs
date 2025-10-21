@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class AgencyService : IAgencyService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<AgencyService> _logger;
     private readonly IRedisService _redis;
 
-    public AgencyService(GtfsDbContext gtfsDBContext, ILogger<AgencyService> logger, IRedisService redis)
+    public AgencyService(GtfsDbContext gtfsDbContext, ILogger<AgencyService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Agency>> GetAllAsync()
     {
-        return await _gtfsDBContext.Agencies.ToListAsync();
+        return await _gtfsDbContext.Agencies.ToListAsync();
     }
 
     public async Task<Agency?> GetByIdAsync(string agencyId)
     {
         return await _redis.GetOrSetAsync(
             $"agency-{agencyId}",
-            async () => await _gtfsDBContext.Agencies.FirstOrDefaultAsync(a => string.Equals(a.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase))
+            async () => await _gtfsDbContext.Agencies.FirstOrDefaultAsync(a => string.Equals(a.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase))
         );
     }
 
@@ -55,7 +55,7 @@ public class AgencyService : IAgencyService
             int totalIgnored = 0;
 
             HashSet<string> existingAgencyIds = new(
-                await _gtfsDBContext.Agencies.Select(a => a.AgencyId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Agencies.Select(a => a.AgencyId.ToLower()).ToListAsync()
             );
 
             List<Agency> entities = new List<Agency>(batchSize);
@@ -118,7 +118,7 @@ public class AgencyService : IAgencyService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                         existingAgencyIds.Add(agencyIdValue.ToLower());
@@ -127,7 +127,7 @@ public class AgencyService : IAgencyService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
 

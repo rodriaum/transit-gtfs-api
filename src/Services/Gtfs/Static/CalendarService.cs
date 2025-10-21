@@ -1,6 +1,6 @@
-﻿using EFCore.BulkExtensions;
+﻿using System.Diagnostics;
+using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
 using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
@@ -12,27 +12,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class CalendarService : ICalendarService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<CalendarService> _logger;
     private readonly IRedisService _redis;
 
-    public CalendarService(GtfsDbContext gtfsDBContext, ILogger<CalendarService> logger, IRedisService redis)
+    public CalendarService(GtfsDbContext gtfsDbContext, ILogger<CalendarService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Calendar>> GetAllAsync()
     {
-        return await _gtfsDBContext.Calendars.ToListAsync();
+        return await _gtfsDbContext.Calendars.ToListAsync();
     }
 
     public async Task<Calendar?> GetByIdAsync(string serviceId)
     {
         return await _redis.GetOrSetAsync(
             $"calendar-{serviceId}",
-            async () => await _gtfsDBContext.Calendars.FirstOrDefaultAsync(c => c.ServiceId == serviceId)
+            async () => await _gtfsDbContext.Calendars.FirstOrDefaultAsync(c => c.ServiceId == serviceId)
         );
     }
 
@@ -56,7 +56,7 @@ public class CalendarService : ICalendarService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new(
-                await _gtfsDBContext.Calendars.Select(c => c.ServiceId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Calendars.Select(c => c.ServiceId.ToLower()).ToListAsync()
             );
 
             List<Calendar> entities = new List<Calendar>(batchSize);
@@ -86,12 +86,15 @@ public class CalendarService : ICalendarService
                         if (j < values.Length)
                             rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
                     }
+                    
                     string serviceId = rowData.GetValueOrDefault("service_id", "") ?? "";
+                    
                     if (existingIds.Contains(serviceId.ToLower()))
                     {
                         totalIgnored++;
                         continue;
                     }
+                    
                     int mondayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("monday", null), 0);
                     int tuesdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("tuesday", null), 0);
                     int wednesdayValue = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("wednesday", null), 0);
@@ -128,7 +131,7 @@ public class CalendarService : ICalendarService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -136,7 +139,7 @@ public class CalendarService : ICalendarService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

@@ -13,27 +13,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FareAttributesService : IFareAttributesService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<FareAttributesService> _logger;
     private readonly IRedisService _redis;
 
-    public FareAttributesService(GtfsDbContext gtfsDBContext, ILogger<FareAttributesService> logger, IRedisService redis)
+    public FareAttributesService(GtfsDbContext gtfsDbContext, ILogger<FareAttributesService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FareAttribute>> GetAllAsync()
     {
-        return await _gtfsDBContext.FareAttributes.ToListAsync();
+        return await _gtfsDbContext.FareAttributes.ToListAsync();
     }
 
     public async Task<FareAttribute?> GetByIdAsync(string fareId)
     {
         return await _redis.GetOrSetAsync(
             $"fare-attributes-{fareId}",
-            async () => await _gtfsDBContext.FareAttributes.FirstOrDefaultAsync(f => f.FareId == fareId)
+            async () => await _gtfsDbContext.FareAttributes.FirstOrDefaultAsync(f => f.FareId == fareId)
         );
     }
 
@@ -57,7 +57,7 @@ public class FareAttributesService : IFareAttributesService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
+                await _gtfsDbContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
             );
 
             List<FareAttribute> entities = new List<FareAttribute>(batchSize);
@@ -119,7 +119,7 @@ public class FareAttributesService : IFareAttributesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -127,7 +127,7 @@ public class FareAttributesService : IFareAttributesService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

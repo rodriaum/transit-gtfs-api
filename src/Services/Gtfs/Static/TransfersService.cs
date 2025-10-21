@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class TransfersService : ITransfersService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<TransfersService> _logger;
     private readonly IRedisService _redis;
 
-    public TransfersService(GtfsDbContext gtfsDBContext, ILogger<TransfersService> logger, IRedisService redis)
+    public TransfersService(GtfsDbContext gtfsDbContext, ILogger<TransfersService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Transfer>> GetAllAsync()
     {
-        return await _gtfsDBContext.Transfers.ToListAsync();
+        return await _gtfsDbContext.Transfers.ToListAsync();
     }
 
     public async Task<List<Transfer>?> GetByFromStopIdAsync(string fromStopId)
     {
         return await _redis.GetOrSetAsync(
             $"transfers-from-{fromStopId}",
-            async () => await _gtfsDBContext.Transfers.Where(t => t.FromStopId == fromStopId).ToListAsync()
+            async () => await _gtfsDbContext.Transfers.Where(t => t.FromStopId == fromStopId).ToListAsync()
         ) ?? new List<Transfer>();
     }
 
@@ -55,7 +55,7 @@ public class TransfersService : ITransfersService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Transfers.Select(t => t.FromStopId.ToLower() + ":" + t.ToStopId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Transfers.Select(t => t.FromStopId.ToLower() + ":" + t.ToStopId.ToLower()).ToListAsync()
             );
 
             List<Transfer> entities = new List<Transfer>(batchSize);
@@ -111,7 +111,7 @@ public class TransfersService : ITransfersService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -119,7 +119,7 @@ public class TransfersService : ITransfersService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

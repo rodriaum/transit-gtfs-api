@@ -15,13 +15,13 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class StopsService : IStopsService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<StopsService> _logger;
     private readonly IRedisService _redis;
 
-    public StopsService(GtfsDbContext gtfsDBContext, ILogger<StopsService> logger, IRedisService redis)
+    public StopsService(GtfsDbContext gtfsDbContext, ILogger<StopsService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
@@ -30,11 +30,11 @@ public class StopsService : IStopsService
     {
         int skip = (page - 1) * pageSize;
 
-        IQueryable<Stop> query = _gtfsDBContext.Stops;
+        IQueryable<Stop> query = _gtfsDbContext.Stops;
 
         if (!string.IsNullOrEmpty(cityId))
         {
-            List<string> stopIds = await _gtfsDBContext.StopCities
+            List<string> stopIds = await _gtfsDbContext.StopCities
                 .Where(city => city.CityId == cityId)
                 .Select(city => city.StopId)
                 .ToListAsync();
@@ -63,7 +63,7 @@ public class StopsService : IStopsService
     {
         return await _redis.GetOrSetAsync(
             $"stop-{stopId}",
-            async () => await _gtfsDBContext.Stops.FirstOrDefaultAsync(s => s.StopId == stopId)
+            async () => await _gtfsDbContext.Stops.FirstOrDefaultAsync(s => s.StopId == stopId)
         );
     }
 
@@ -71,7 +71,7 @@ public class StopsService : IStopsService
     {
         Point point = new Point(lon, lat) { SRID = Constant.Wgs84GeometryFactory.SRID };
 
-        return await _gtfsDBContext.Stops.Where(s => s.Location != null)
+        return await _gtfsDbContext.Stops.Where(s => s.Location != null)
             .OrderBy(s => s.Location!.Distance(point))
             .Take(limit)
             .ToListAsync();
@@ -96,8 +96,8 @@ public class StopsService : IStopsService
             int totalImported = 0;
             int totalIgnored = 0;
 
-            HashSet<string> existingIds = [.. await _gtfsDBContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()];
-            List<City> cities = await _gtfsDBContext.Cities.ToListAsync();
+            HashSet<string> existingIds = [.. await _gtfsDbContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()];
+            List<City> cities = await _gtfsDbContext.Cities.ToListAsync();
 
             List<Stop> entities = new List<Stop>(batchSize);
             List<StopCity> stopCities = new List<StopCity>(batchSize);
@@ -183,22 +183,22 @@ public class StopsService : IStopsService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
 
-                        await _gtfsDBContext.BulkInsertAsync(stopCities);
+                        await _gtfsDbContext.BulkInsertAsync(stopCities);
                         stopCities.Clear();
                     }
                 }
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
 
-                    await _gtfsDBContext.BulkInsertAsync(stopCities);
+                    await _gtfsDbContext.BulkInsertAsync(stopCities);
                     stopCities.Clear();
                 }
             }

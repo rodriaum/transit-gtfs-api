@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class StopAreaService : IStopAreaService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<StopAreaService> _logger;
     private readonly IRedisService _redis;
 
-    public StopAreaService(GtfsDbContext gtfsDBContext, ILogger<StopAreaService> logger, IRedisService redis)
+    public StopAreaService(GtfsDbContext gtfsDbContext, ILogger<StopAreaService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<StopArea>> GetAllAsync()
     {
-        return await _gtfsDBContext.Set<StopArea>().ToListAsync();
+        return await _gtfsDbContext.Set<StopArea>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -47,7 +47,7 @@ public class StopAreaService : IStopAreaService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.Set<StopArea>().Select(s => s.StopAreaId.ToLower()).ToListAsync()
+                await _gtfsDbContext.Set<StopArea>().Select(s => s.StopAreaId.ToLower()).ToListAsync()
             );
 
             List<StopArea> entities = new List<StopArea>(batchSize);
@@ -101,7 +101,7 @@ public class StopAreaService : IStopAreaService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -109,7 +109,7 @@ public class StopAreaService : IStopAreaService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

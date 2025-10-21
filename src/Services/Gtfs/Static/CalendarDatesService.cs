@@ -12,27 +12,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class CalendarDatesService : ICalendarDatesService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<CalendarDatesService> _logger;
     private readonly IRedisService _redis;
 
-    public CalendarDatesService(GtfsDbContext gtfsDBContext, ILogger<CalendarDatesService> logger, IRedisService redis)
+    public CalendarDatesService(GtfsDbContext gtfsDbContext, ILogger<CalendarDatesService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<CalendarDate>> GetAllAsync()
     {
-        return await _gtfsDBContext.CalendarDates.ToListAsync();
+        return await _gtfsDbContext.CalendarDates.ToListAsync();
     }
 
     public async Task<List<CalendarDate>?> GetByServiceIdAsync(string serviceId)
     {
         return await _redis.GetOrSetAsync(
             $"calendar-dates-service-{serviceId}",
-            async () => await _gtfsDBContext.CalendarDates.Where(c => c.ServiceId == serviceId).ToListAsync()
+            async () => await _gtfsDbContext.CalendarDates.Where(c => c.ServiceId == serviceId).ToListAsync()
         ) ?? new List<CalendarDate>();
     }
 
@@ -56,7 +56,7 @@ public class CalendarDatesService : ICalendarDatesService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.CalendarDates.Select(c => c.ServiceId.ToLower() + ":" + c.Date.ToLower()).ToListAsync()
+                await _gtfsDbContext.CalendarDates.Select(c => c.ServiceId.ToLower() + ":" + c.Date.ToLower()).ToListAsync()
             );
 
             List<CalendarDate> entities = new List<CalendarDate>(batchSize);
@@ -119,7 +119,7 @@ public class CalendarDatesService : ICalendarDatesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -127,7 +127,7 @@ public class CalendarDatesService : ICalendarDatesService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }

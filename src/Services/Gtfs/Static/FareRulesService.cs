@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FareRulesService : IFareRulesService
 {
-    private readonly GtfsDbContext _gtfsDBContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<FareRulesService> _logger;
     private readonly IRedisService _redis;
 
-    public FareRulesService(GtfsDbContext gtfsDBContext, ILogger<FareRulesService> logger, IRedisService redis)
+    public FareRulesService(GtfsDbContext gtfsDbContext, ILogger<FareRulesService> logger, IRedisService redis)
     {
-        _gtfsDBContext = gtfsDBContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FareRule>> GetAllAsync()
     {
-        return await _gtfsDBContext.FareRules.ToListAsync();
+        return await _gtfsDbContext.FareRules.ToListAsync();
     }
 
     public async Task<List<FareRule>?> GetByFareIdAsync(string fareId)
     {
         return await _redis.GetOrSetAsync(
             $"fare-rules-{fareId}",
-            async () => await _gtfsDBContext.FareRules.Where(f => f.FareId == fareId).ToListAsync()
+            async () => await _gtfsDbContext.FareRules.Where(f => f.FareId == fareId).ToListAsync()
         );
     }
 
@@ -55,7 +55,7 @@ public class FareRulesService : IFareRulesService
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDBContext.FareRules.Select(f => f.FareId.ToLower() + ":" + (f.RouteId ?? "").ToLower() + ":" + (f.OriginId ?? "").ToLower() + ":" + (f.DestinationId ?? "").ToLower() + ":" + (f.ContainsId ?? "").ToLower()).ToListAsync()
+                await _gtfsDbContext.FareRules.Select(f => f.FareId.ToLower() + ":" + (f.RouteId ?? "").ToLower() + ":" + (f.OriginId ?? "").ToLower() + ":" + (f.DestinationId ?? "").ToLower() + ":" + (f.ContainsId ?? "").ToLower()).ToListAsync()
             );
 
             List<FareRule> entities = new List<FareRule>(batchSize);
@@ -115,7 +115,7 @@ public class FareRulesService : IFareRulesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _gtfsDBContext.BulkInsertAsync(entities);
+                        await _gtfsDbContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -123,7 +123,7 @@ public class FareRulesService : IFareRulesService
 
                 if (entities.Count > 0)
                 {
-                    await _gtfsDBContext.BulkInsertAsync(entities);
+                    await _gtfsDbContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
