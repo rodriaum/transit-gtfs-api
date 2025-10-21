@@ -173,7 +173,7 @@ public class GtfsDataService : IGtfsDataService
                 _logger.LogInformation("Importing GTFS data from {0} (Agency: {1})", gtfsDirectoryPath, agencyId);
 
                 /*
-                * Because agencies are very creative with their agency_id, such as SUPER Creative values ​​like "1", "2"
+                * Because agencies are very creative with their agency_id, such as SUPER Creative values like "1", "2"
                 * Where several use this, and end up duplicating or replacing, the id will be set manually based on the GtfsData
                 * from the gtfs data list which contains the download url and other information.
                 */

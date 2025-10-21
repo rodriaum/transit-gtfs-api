@@ -1,7 +1,5 @@
-﻿using EFCore.BulkExtensions;
+﻿using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using System.Globalization;
 using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
@@ -15,13 +13,13 @@ public class FareAttributesService : IFareAttributesService
 {
     private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<FareAttributesService> _logger;
-    private readonly IRedisService _redis;
+    private readonly IPostgresService _postgresService;
 
-    public FareAttributesService(GtfsDbContext gtfsDbContext, ILogger<FareAttributesService> logger, IRedisService redis)
+    public FareAttributesService(GtfsDbContext gtfsDbContext, ILogger<FareAttributesService> logger, IPostgresService postgresService)
     {
         _gtfsDbContext = gtfsDbContext;
         _logger = logger;
-        _redis = redis;
+        _postgresService = postgresService;
     }
 
     public async Task<List<FareAttribute>> GetAllAsync()
@@ -31,122 +29,52 @@ public class FareAttributesService : IFareAttributesService
 
     public async Task<FareAttribute?> GetByIdAsync(string fareId)
     {
-        return await _redis.GetOrSetAsync(
-            $"fare-attributes-{fareId}",
-            async () => await _gtfsDbContext.FareAttributes.FirstOrDefaultAsync(f => f.FareId == fareId)
-        );
+        return await _gtfsDbContext.FareAttributes.FirstOrDefaultAsync(f => f.FareId == fareId);
     }
 
     public async Task ImportDataAsync(string directoryPath)
     {
-        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "fare_attributes.txt");
 
-        if (!File.Exists(filePath))
+        HashSet<string> existingIds = new(
+            await _gtfsDbContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
+        );
+
+        List<Dictionary<string, string?>> csvData = await CsvImportUtil.ReadCsvAsync(filePath, _logger);
+        List<FareAttribute> entities = new List<FareAttribute>();
+        int totalIgnored = 0;
+
+        foreach (var rowData in csvData)
         {
-            _logger.LogWarning("File not found: {FilePath}", filePath);
-            return;
-        }
+            string fareId = rowData.GetValueOrDefault("fare_id", "") ?? "";
 
-        try
-        {
-            _logger.LogInformation($"Starting data import process from {filePath}");
-
-            int batchSize = Constant.SqlBatchSizeImport;
-            int totalImported = 0;
-            int totalIgnored = 0;
-
-            HashSet<string> existingIds = new HashSet<string>(
-                await _gtfsDbContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
-            );
-
-            List<FareAttribute> entities = new List<FareAttribute>(batchSize);
-
-            using (StreamReader reader = new StreamReader(filePath))
+            if (existingIds.Contains(fareId.ToLower()))
             {
-                string? headerLine = await reader.ReadLineAsync();
-
-                if (string.IsNullOrWhiteSpace(headerLine))
-                {
-                    _logger.LogWarning($"No data found in {filePath}");
-                    return;
-                }
-
-                string[] headers = headerLine.Split(',');
-                string? line;
-
-                while ((line = await reader.ReadLineAsync()) != null)
-                {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    string[] values = line.Split(',');
-                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
-
-                    for (int j = 0; j < headers.Length; j++)
-                    {
-                        if (j < values.Length)
-                        {
-                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
-                        }
-                    }
-
-                    string fareId = rowData.GetValueOrDefault("fare_id", "") ?? "";
-                    if (existingIds.Contains(fareId.ToLower()))
-                    {
-                        totalIgnored++;
-                        continue;
-                    }
-
-                    int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
-                    if (!EnumUtil.TryFromValue(paymentMethodId, out PaymentMethodType paymentMethod))
-                    {
-                        paymentMethod = PaymentMethodType.PayBefore;
-                    }
-
-                    FareAttribute entity = new FareAttribute
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        FareId = fareId,
-                        Price = NumberUtil.ParseDecimalSafe(rowData.GetValueOrDefault("price", null), format: CultureInfo.InvariantCulture),
-                        CurrencyType = rowData.GetValueOrDefault("currency_type", "") ?? "",
-                        PaymentMethod = paymentMethod,
-                        Transfers = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfers", null)),
-                        TransferDuration = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_duration", null)),
-                    };
-
-                    entities.Add(entity);
-                    existingIds.Add(fareId.ToLower());
-
-                    if (entities.Count >= batchSize)
-                    {
-                        await _gtfsDbContext.BulkInsertAsync(entities);
-                        totalImported += entities.Count;
-                        entities.Clear();
-                    }
-                }
-
-                if (entities.Count > 0)
-                {
-                    await _gtfsDbContext.BulkInsertAsync(entities);
-                    totalImported += entities.Count;
-                    entities.Clear();
-                }
+                totalIgnored++;
+                continue;
             }
 
-            stopwatch.Stop();
+            int paymentMethodId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("payment_method", null), 0);
+            if (!EnumUtil.TryFromValue(paymentMethodId, out PaymentMethodType paymentMethod))
+            {
+                paymentMethod = PaymentMethodType.PayBefore;
+            }
 
-            _logger.LogInformation(
-                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
-                totalImported,
-                filePath,
-                totalIgnored,
-                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"\nError importing data from {filePath}");
-            return;
+            FareAttribute entity = new FareAttribute
+            {
+                Id = Guid.NewGuid().ToString(),
+                FareId = fareId,
+                Price = NumberUtil.ParseDecimalSafe(rowData.GetValueOrDefault("price", null),
+                    format: CultureInfo.InvariantCulture),
+                CurrencyType = rowData.GetValueOrDefault("currency_type", "") ?? "",
+                PaymentMethod = paymentMethod,
+                Transfers = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfers", null)),
+                TransferDuration = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("transfer_duration", null)),
+            };
+
+            entities.Add(entity);
+            existingIds.Add(fareId.ToLower());
+            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
     }
 }

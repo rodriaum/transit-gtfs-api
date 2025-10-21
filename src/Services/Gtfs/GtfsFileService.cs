@@ -63,7 +63,8 @@ public class GtfsFileService : IGtfsFileService
 
             if (needsDownload)
             {
-                _logger.LogInformation("Downloading and extracting GTFS data from {0} to {1}", gtfsUrl, providerDirectory);
+                //_logger.LogInformation("Downloading and extracting GTFS data from {0} to {1}", gtfsUrl, providerDirectory);
+                _logger.LogInformation("Downloading and extracting GTFS data from agency {0}.", agencyId);
                 string tempZipPath = Path.Combine(Constant.TempDownloadFolder, $"gtfs_{i + 1}.zip");
 
                 if (!Directory.Exists(Constant.TempDownloadFolder))
@@ -90,7 +91,7 @@ public class GtfsFileService : IGtfsFileService
             }
             else
             {
-                _logger.LogInformation("GTFS files for {0} already exist at {1}", agencyId, providerDirectory);
+                //_logger.LogInformation("GTFS files for {0} already exist at {1}", agencyId, providerDirectory);
             }
 
             gtfsDirectories.Add(providerDirectory);
@@ -124,7 +125,7 @@ public class GtfsFileService : IGtfsFileService
 
     private async Task<bool> DownloadGtfsFileAsync(string url, string filePath)
     {
-        _logger.LogInformation("Downloading GTFS data from {0}", url);
+        //_logger.LogInformation("Downloading GTFS data from {0}", url);
 
         try
         {
