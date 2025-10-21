@@ -87,8 +87,8 @@ public class CalendarService : ICalendarService
 
             entities.Add(entity);
             existingIds.Add(serviceId.ToLower());
-
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

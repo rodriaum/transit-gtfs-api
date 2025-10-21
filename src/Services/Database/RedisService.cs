@@ -8,14 +8,18 @@ namespace Tranzor.Services.Database
     {
         private readonly IDistributedCache _cache;
         private readonly ILogger<RedisService> _logger;
-        private readonly TimeSpan _duration;
+        private readonly TimeSpan _defaultDuration;
+        private readonly SemaphoreSlim _healthCheckLock = new(1, 1);
+        private DateTime _lastHealthCheck = DateTime.MinValue;
+        private bool _lastHealthCheckResult;
+        private readonly TimeSpan _healthCheckCacheDuration = TimeSpan.FromSeconds(30);
 
         public RedisService(IDistributedCache cache, ILogger<RedisService> logger, TimeSpan? duration = null)
         {
-            _cache = cache;
-            _logger = logger;
-            _duration = duration ?? Constant.CacheDuration;
-            
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _defaultDuration = duration ?? Constant.CacheDuration;
+
             LogRedisConfiguration();
         }
 
@@ -23,15 +27,15 @@ namespace Tranzor.Services.Database
         {
             string? connection = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
             string? instanceName = Environment.GetEnvironmentVariable("REDIS_INSTANCE_NAME");
-            
-            _logger.LogInformation("[Redis] Cache configured with connection: {Connection}", 
+
+            _logger.LogInformation("[Redis] Cache configured with connection: {Connection}",
                 MaskConnectionString(connection));
-            _logger.LogInformation("[Redis] Instance name: {InstanceName}", instanceName?.ToLower());
-            _logger.LogInformation("[Redis] Default cache duration: {Duration} minutes", 
-                _duration.TotalMinutes);
+            _logger.LogInformation("[Redis] Instance name: {InstanceName}", instanceName ?? "not set");
+            _logger.LogInformation("[Redis] Default cache duration: {Duration} minutes",
+                _defaultDuration.TotalMinutes);
         }
 
-        private string MaskConnectionString(string? connectionString)
+        private static string MaskConnectionString(string? connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return "not configured";
@@ -42,108 +46,159 @@ namespace Tranzor.Services.Database
                 var hostPort = parts[0].Split(':');
                 return hostPort.Length > 1 ? $"{hostPort[0]}:****" : parts[0];
             }
-            
+
             return "configured";
+        }
+        
+        public async Task RSetupAsync()
+        {
+            string time = DateTime.UtcNow.ToString("o");
+            await SetAsync("api:start-time", time);
         }
 
         public async Task<bool> IsRedisAvailable()
         {
+            // Cache health check result to avoid too many checks
+            if (DateTime.UtcNow - _lastHealthCheck < _healthCheckCacheDuration)
+            {
+                return _lastHealthCheckResult;
+            }
+
+            await _healthCheckLock.WaitAsync();
             try
             {
-                var testKey = "redis_health_check";
-                await _cache.SetStringAsync(testKey, "1", new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5) });
+                // Double-check after acquiring lock
+                if (DateTime.UtcNow - _lastHealthCheck < _healthCheckCacheDuration)
+                {
+                    return _lastHealthCheckResult;
+                }
+
+                var testKey = "redis:health:check";
+                var testValue = DateTime.UtcNow.Ticks.ToString();
+                var options = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10)
+                };
+
+                await _cache.SetStringAsync(testKey, testValue, options);
                 var value = await _cache.GetStringAsync(testKey);
-                
-                if (value == "1")
+
+                _lastHealthCheckResult = value == testValue;
+                _lastHealthCheck = DateTime.UtcNow;
+
+                if (_lastHealthCheckResult)
                 {
                     _logger.LogDebug("[Redis] Health check passed");
-                    return true;
                 }
-                
-                return false;
+                else
+                {
+                    _logger.LogWarning("[Redis] Health check failed - value mismatch");
+                }
+
+                return _lastHealthCheckResult;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[Redis] Health check failed");
+                _lastHealthCheckResult = false;
+                _lastHealthCheck = DateTime.UtcNow;
                 return false;
+            }
+            finally
+            {
+                _healthCheckLock.Release();
             }
         }
 
-        public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T>> factory) where T : class
+        public async Task<T?> GetAsync<T>(string key) where T : class
         {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentNullException(nameof(key));
+
             if (!await IsRedisAvailable())
             {
                 _logger.LogWarning("[Redis] Unavailable. Skipping cache for key: {Key}", key);
-                return await factory();
+                return null;
             }
 
             try
             {
-                key = key.ToLower();
-                string? data = null;
+                key = NormalizeKey(key);
+                var json = await _cache.GetStringAsync(key);
 
-                try
+                if (string.IsNullOrEmpty(json))
                 {
-                    data = await _cache.GetStringAsync(key);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[Redis] Error accessing (auth/connection issue?). Skipping cache for key: {Key}", key);
-                    return await factory();
+                    return null;
                 }
 
-                if (!string.IsNullOrEmpty(data))
-                {
-                    _logger.LogDebug("[Redis] Cache hit for key: {Key}", key);
-                    return await JsonUtil.StringToObjectAsync<T>(data);
-                }
-
-                _logger.LogDebug("[Redis] Cache miss for key: {Key}", key);
-
-                T result = await factory();
-
-                if (result != null)
-                {
-                    string? json = await JsonUtil.ObjectToStringAsync<T>(result);
-
-                    if (!string.IsNullOrEmpty(json) && !json.Equals("[]"))
-                    {
-                        DistributedCacheEntryOptions options = new DistributedCacheEntryOptions
-                        {
-                            AbsoluteExpirationRelativeToNow = _duration
-                        };
-
-                        try
-                        {
-                            await _cache.SetStringAsync(key, json, options);
-                            _logger.LogDebug("[Redis] Item cached with key: {Key}", key);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "[Redis] Error setting item in cache with key: {Key}", key);
-                        }
-                    }
-                }
-
+                var result = await JsonUtil.StringToObjectAsync<T>(json);
+                _logger.LogDebug("[Redis] Cache hit for key: {Key}", key);
                 return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Redis] Error getting or setting item in cache with key: {Key}", key);
-                return await factory();
+                _logger.LogError(ex, "[Redis] Error getting item from cache with key: {Key}", key);
+                return null;
+            }
+        }
+
+        public async Task<bool> SetAsync<T>(string key, T value, TimeSpan? expiration = null) where T : class
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentNullException(nameof(key));
+
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
+            if (!await IsRedisAvailable())
+            {
+                _logger.LogWarning("[Redis] Unavailable. Skipping cache for key: {Key}", key);
+                return false;
+            }
+
+            try
+            {
+                key = NormalizeKey(key);
+                var json = await JsonUtil.ObjectToStringAsync<T>(value);
+
+                if (string.IsNullOrEmpty(json) || json == "[]" || json == "{}")
+                {
+                    _logger.LogWarning("[Redis] Skipping cache for empty/invalid value with key: {Key}", key);
+                    return false;
+                }
+
+                var options = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = expiration ?? _defaultDuration
+                };
+
+                await _cache.SetStringAsync(key, json, options);
+                _logger.LogDebug("[Redis] Item cached with key: {Key}, expiration: {Expiration} minutes",
+                    key, options.AbsoluteExpirationRelativeToNow?.TotalMinutes);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Redis] Error setting item in cache with key: {Key}", key);
+                return false;
             }
         }
 
         public async Task RemoveAsync(string key)
         {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentNullException(nameof(key));
+
             if (!await IsRedisAvailable())
             {
                 _logger.LogWarning("[Redis] Unavailable. Skipping remove for key: {Key}", key);
                 return;
             }
+
             try
             {
-                key = key.ToLower();
+                key = NormalizeKey(key);
                 await _cache.RemoveAsync(key);
                 _logger.LogDebug("[Redis] Removed item from cache with key: {Key}", key);
             }
@@ -155,28 +210,49 @@ namespace Tranzor.Services.Database
 
         public async Task RemoveByPrefixAsync(string prefix)
         {
-            _logger.LogWarning("[Redis] {Method} not fully implemented. Prefix: {Prefix}", nameof(RemoveByPrefixAsync), prefix);
+            if (string.IsNullOrWhiteSpace(prefix))
+                throw new ArgumentNullException(nameof(prefix));
+
+            // Note: IDistributedCache doesn't support pattern-based deletion
+            // This would require direct Redis connection (e.g., using StackExchange.Redis)
+            // For now, log a warning
+            _logger.LogWarning(
+                "[Redis] {Method} requires direct Redis access (not implemented with IDistributedCache). Prefix: {Prefix}",
+                nameof(RemoveByPrefixAsync), prefix);
+
             await Task.CompletedTask;
         }
 
         public async Task<bool> ExistsAsync(string key)
         {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentNullException(nameof(key));
+
             if (!await IsRedisAvailable())
             {
                 _logger.LogWarning("[Redis] Unavailable. Skipping exists check for key: {Key}", key);
                 return false;
             }
+
             try
             {
-                key = key.ToLower();
-                string? data = await _cache.GetStringAsync(key);
-                return !string.IsNullOrEmpty(data);
+                key = NormalizeKey(key);
+                var data = await _cache.GetStringAsync(key);
+                var exists = !string.IsNullOrEmpty(data);
+
+                _logger.LogDebug("[Redis] Key {Key} exists: {Exists}", key, exists);
+                return exists;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Redis] Error checking if key exists in cache: {Key}", key);
                 return false;
             }
+        }
+
+        private static string NormalizeKey(string key)
+        {
+            return key.ToLowerInvariant().Trim();
         }
     }
 }

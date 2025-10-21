@@ -82,6 +82,13 @@ public class StopsService : IStopsService
             await _gtfsDbContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()
         );
 
+        // Get existing StopCity combinations to avoid duplicates
+        HashSet<string> existingStopCities = new(
+            await _gtfsDbContext.StopCities
+                .Select(sc => $"{sc.StopId}_{sc.CityId}")
+                .ToListAsync()
+        );
+
         List<City> cities = await _gtfsDbContext.Cities.ToListAsync();
         List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
 
@@ -136,6 +143,12 @@ public class StopsService : IStopsService
                 if (entity.Location == null) break;
                 if (!city.Geom.Contains(entity.Location)) continue;
 
+                string stopCityKey = $"{entity.Id}_{city.Id}";
+                
+                // Skip if this StopCity combination already exists
+                if (existingStopCities.Contains(stopCityKey))
+                    continue;
+
                 StopCity stopCity = new StopCity
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -144,20 +157,22 @@ public class StopsService : IStopsService
                 };
 
                 stopCities.Add(stopCity);
+                existingStopCities.Add(stopCityKey); // Track it to avoid duplicates within this import
             }
 
             if (!stopCities.Any(sc => sc.StopId == entity.Id))
             {
                 _logger.LogWarning("Stop {StopId} does not have a city to be assigned.", entity.StopId);
             }
+        }
 
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
+        // Bulk insert all entities and stop_cities after processing all rows
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
 
-            // ALERT: This need to be before the insert of the entities, because it uses the entity.Id
-            if (stopCities.Count > 0)
-            {
-                await _gtfsDbContext.BulkInsertAsync(stopCities);
-            }
+        // ALERT: This need to be after the insert of the stops entities, because it uses the entity.Id
+        if (stopCities.Count > 0)
+        {
+            await _gtfsDbContext.BulkInsertAsync(stopCities);
         }
     }
 }

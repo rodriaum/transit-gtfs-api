@@ -74,7 +74,8 @@ public class ShapesService : IShapesService
 
             entities.Add(entity);
             existingIds.Add(shapeId.ToLower());
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

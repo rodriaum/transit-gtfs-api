@@ -66,7 +66,8 @@ public class FeedInfoService : IFeedInfoService
 
             entities.Add(entity);
             existingIds.Add(uniqueKey);
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

@@ -74,7 +74,8 @@ public class FareAttributesService : IFareAttributesService
 
             entities.Add(entity);
             existingIds.Add(fareId.ToLower());
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

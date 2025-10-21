@@ -82,7 +82,8 @@ public class RoutesService : IRoutesService
 
             entities.Add(entity);
             existingIds.Add(routeId.ToLower());
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

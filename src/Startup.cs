@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using AspNetCoreRateLimit;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -7,8 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using System.Text.Json.Serialization;
-using Tranzor.Context;
 using Tranzor.Context;
 using Tranzor.Filters;
 using Tranzor.HealthChecks;
@@ -364,20 +363,22 @@ public class Startup
 
         try
         {
-            // Inicializar PostgreSQL
+            // Start Postgres
             using (var scope = serviceProvider.CreateScope())
             {
-                var postgresService = scope.ServiceProvider.GetRequiredService<IPostgresService>();
+                IPostgresService postgresService = scope.ServiceProvider.GetRequiredService<IPostgresService>();
                 postgresService.InitializeAsync().Wait();
             }
 
-            // Inicializar Redis
-            var redisService = serviceProvider.GetRequiredService<IRedisService>();
+            // Start Redis
+            IRedisService redisService = serviceProvider.GetRequiredService<IRedisService>();
+            
             Task.Run(async () =>
             {
                 bool isAvailable = await redisService.IsRedisAvailable();
                 if (isAvailable)
                 {
+                    await redisService.RSetupAsync();
                     logger.LogInformation("[Redis] Connection verified successfully");
                 }
                 else
@@ -386,7 +387,7 @@ public class Startup
                 }
             }).Wait();
 
-            // Inicializar Cassandra
+            // Start Cassandra
             cassandraService.InitializeAsync().Wait();
 
             configService.InitializeAsync().Wait();

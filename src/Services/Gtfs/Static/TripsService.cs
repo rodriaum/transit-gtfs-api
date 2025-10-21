@@ -101,7 +101,8 @@ public class TripsService : ITripsService
 
             entities.Add(entity);
             existingIds.Add(tripId.ToLower());
-            await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
         }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }
