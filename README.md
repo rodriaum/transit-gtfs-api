@@ -11,7 +11,7 @@ Você pode acessar os documentos da API por [aqui](https://metro-porto.gitbook.i
 ## Arquitetura Técnica
 
 - **Framework**: ASP.NET Core (.NET 9.0)
-- **Base de Dados**: PostgreSQL + PostGIS e Redis
+- **Base de Dados**: PostgreSQL + PostGIS, Apache Cassandra e Redis
 
 ## Funcionalidades
 
@@ -37,6 +37,25 @@ Esta API segue os padrões GTFS (General Transit Feed Specification), garantindo
 - **Formatos Suportados**: JSON, Texto Simples
 - **OpenTripPlanner**: Precisa configurar o [OTP](https://github.com/opentripplanner/OpenTripPlanner) para planejar rotas.
 - **Paragem por Cidade**: Para conseguir procurar paragens por cidade precisa importar o [cities.sql](https://github.com/rodriaum/tranzor-api/blob/dev/SQL/cities.sql)
+
+## Primeiros Passos
+
+Antes de iniciar o projeto pela primeira vez, siga os passos abaixo:
+
+1. Configure o arquivo `.env` com as variáveis de ambiente necessárias.
+2. Acesse o banco de dados PostgreSQL e execute o seguinte comando para habilitar o suporte a dados geoespaciais:
+
+   ```sql
+   CREATE EXTENSION postgis;
+   ```
+
+3. Após isso, execute o comando para aplicar as migrações do Entity Framework:
+
+   ```bash
+   dotnet ef database update
+   ```
+
+4. Após rodar o comando acima, é necessário executar o arquivo `SQL/cities.sql` diretamente no banco de dados. Este arquivo contém dados geográficos grandes (colunas `geom`) das zonas das cidades, por isso, não deve ser aberto e copiado manualmente.
 
 ## Licença
 [MIT License](https://github.com/rodriaum/tranzor-api?tab=MIT-1-ov-file#MIT-1-ov-file)
