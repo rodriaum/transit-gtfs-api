@@ -5,6 +5,6 @@ namespace Tranzor.Enums;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum RealtimeFileType
 {
-    HTTP,
+    Http,
     WebSocket
 }

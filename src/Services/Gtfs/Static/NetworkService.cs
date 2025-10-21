@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class NetworkService : INetworkService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<NetworkService> _logger;
     private readonly IRedisService _redis;
 
-    public NetworkService(GTFSContext dbContext, ILogger<NetworkService> logger, IRedisService redis)
+    public NetworkService(GtfsDbContext gtfsDBContext, ILogger<NetworkService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Network>> GetAllAsync()
     {
-        return await _dbContext.Set<Network>().ToListAsync();
+        return await _gtfsDBContext.Set<Network>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -42,12 +42,12 @@ public class NetworkService : INetworkService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Set<Network>().Select(n => n.NetworkId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Set<Network>().Select(n => n.NetworkId.ToLower()).ToListAsync()
             );
 
             List<Network> entities = new List<Network>(batchSize);
@@ -101,7 +101,7 @@ public class NetworkService : INetworkService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -109,7 +109,7 @@ public class NetworkService : INetworkService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -118,7 +118,10 @@ public class NetworkService : INetworkService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

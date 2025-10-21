@@ -18,7 +18,7 @@ public class GtfsData
     public string? GtfsExpireAt { get; set; }
 
     [JsonPropertyName("ignored_files")]
-    public List<string> IgnoredFiles { get; set; } = new List<string>();
+    public List<string> IgnoredFiles { get; set; } = new();
 
     [JsonPropertyName("realtime_urls")]
     public Dictionary<RealtimeType, GtfsDataRealtime>? RealtimeUrls { get; set; }

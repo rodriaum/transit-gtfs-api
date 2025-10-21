@@ -1,7 +1,7 @@
 ﻿using Cassandra;
 using System.Diagnostics;
 using System.Globalization;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Realtime;
@@ -14,20 +14,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class StopTimesService : IStopTimesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ICassandraService _cassandraService;
     private readonly ILogger<StopTimesService> _logger;
     private readonly IRedisService _redis;
     private readonly IGtfsRealtimeCacheService _realtimeService;
 
     public StopTimesService(
-        GTFSContext dbContext,
+        GtfsDbContext gtfsDBContext,
         ICassandraService cassandraService,
         ILogger<StopTimesService> logger,
         IRedisService redis,
         IGtfsRealtimeCacheService realtimeService)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _cassandraService = cassandraService;
         _logger = logger;
         _redis = redis;
@@ -42,17 +42,17 @@ public class StopTimesService : IStopTimesService
 
         string sqlDate = date.ToString("yyyy-MM-dd");
 
-        IQueryable<string> calendarQuery = _dbContext.Calendars
+        IQueryable<string> calendarQuery = _gtfsDBContext.Calendars
             .Where(c => EF.Functions.ToDate(EF.Property<string>(c, "StartDate"), "YYYYMMDD") <= dateOnly &&
                         EF.Functions.ToDate(EF.Property<string>(c, "EndDate"), "YYYYMMDD") >= dateOnly &&
                         EF.Property<int>(c, dayColumn) == (int)StatusType.Active)
             .Select(c => c.ServiceId);
 
         return calendarQuery
-            .Union(_dbContext.CalendarDates
+            .Union(_gtfsDBContext.CalendarDates
                 .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
                 .Select(cd => cd.ServiceId))
-            .Except(_dbContext.CalendarDates
+            .Except(_gtfsDBContext.CalendarDates
                 .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
                 .Select(cd => cd.ServiceId));
     }
@@ -93,7 +93,7 @@ public class StopTimesService : IStopTimesService
                 {
                     List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
 
-                    Trip? trip = await _dbContext.Trips
+                    Trip? trip = await _gtfsDBContext.Trips
                         .Where(t => t.TripId == tripId && activeServiceIds.Contains(t.ServiceId))
                         .FirstOrDefaultAsync();
 
@@ -148,7 +148,7 @@ public class StopTimesService : IStopTimesService
                 if (!ignoreCalendar)
                 {
                     List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
-                    List<string> activeTripIds = await _dbContext.Trips
+                    List<string> activeTripIds = await _gtfsDBContext.Trips
                         .Where(t => activeServiceIds.Contains(t.ServiceId))
                         .Select(t => t.TripId)
                         .ToListAsync();
@@ -184,7 +184,7 @@ public class StopTimesService : IStopTimesService
 
             Cassandra.ISession session = await _cassandraService.GetSessionAsync();
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.CassandraBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
@@ -282,7 +282,11 @@ public class StopTimesService : IStopTimesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in Cassandra with {totalIgnored} line(s) ignored. ({TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)})"
+                "Inserted {0} records from {1} in cassandra with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }
         catch (Exception ex)

@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class RoutesService : IRoutesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<RoutesService> _logger;
     private readonly IRedisService _redis;
 
-    public RoutesService(GTFSContext dbContext, ILogger<RoutesService> logger, IRedisService redis)
+    public RoutesService(GtfsDbContext gtfsDBContext, ILogger<RoutesService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Models.Route>> GetAllAsync()
     {
-        return await _dbContext.Routes.ToListAsync();
+        return await _gtfsDBContext.Routes.ToListAsync();
     }
 
     public async Task<Models.Route?> GetByIdAsync(string routeId)
     {
         return await _redis.GetOrSetAsync(
             $"route-{routeId}",
-            async () => await _dbContext.Routes.FirstOrDefaultAsync(r => r.RouteId == routeId)
+            async () => await _gtfsDBContext.Routes.FirstOrDefaultAsync(r => r.RouteId == routeId)
         );
     }
 
@@ -50,12 +50,12 @@ public class RoutesService : IRoutesService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Routes.Select(r => r.RouteId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Routes.Select(r => r.RouteId.ToLower()).ToListAsync()
             );
 
             List<Models.Route> entities = new List<Models.Route>(batchSize);
@@ -125,7 +125,7 @@ public class RoutesService : IRoutesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -133,7 +133,7 @@ public class RoutesService : IRoutesService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -142,7 +142,10 @@ public class RoutesService : IRoutesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

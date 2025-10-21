@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
@@ -12,27 +12,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class CalendarDatesService : ICalendarDatesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<CalendarDatesService> _logger;
     private readonly IRedisService _redis;
 
-    public CalendarDatesService(GTFSContext dbContext, ILogger<CalendarDatesService> logger, IRedisService redis)
+    public CalendarDatesService(GtfsDbContext gtfsDBContext, ILogger<CalendarDatesService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<CalendarDate>> GetAllAsync()
     {
-        return await _dbContext.CalendarDates.ToListAsync();
+        return await _gtfsDBContext.CalendarDates.ToListAsync();
     }
 
     public async Task<List<CalendarDate>?> GetByServiceIdAsync(string serviceId)
     {
         return await _redis.GetOrSetAsync(
             $"calendar-dates-service-{serviceId}",
-            async () => await _dbContext.CalendarDates.Where(c => c.ServiceId == serviceId).ToListAsync()
+            async () => await _gtfsDBContext.CalendarDates.Where(c => c.ServiceId == serviceId).ToListAsync()
         ) ?? new List<CalendarDate>();
     }
 
@@ -49,14 +49,14 @@ public class CalendarDatesService : ICalendarDatesService
 
         try
         {
-            _logger.LogInformation($"Starting data import process from {filePath}");
+            _logger.LogInformation("Starting data import process from {0}", filePath);
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.CalendarDates.Select(c => c.ServiceId.ToLower() + ":" + c.Date.ToLower()).ToListAsync()
+                await _gtfsDBContext.CalendarDates.Select(c => c.ServiceId.ToLower() + ":" + c.Date.ToLower()).ToListAsync()
             );
 
             List<CalendarDate> entities = new List<CalendarDate>(batchSize);
@@ -67,7 +67,7 @@ public class CalendarDatesService : ICalendarDatesService
 
                 if (string.IsNullOrWhiteSpace(headerLine))
                 {
-                    _logger.LogWarning($"No data found in {filePath}");
+                    _logger.LogWarning("No data found in {0}", filePath);
                     return;
                 }
 
@@ -119,7 +119,7 @@ public class CalendarDatesService : ICalendarDatesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -127,7 +127,7 @@ public class CalendarDatesService : ICalendarDatesService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -136,7 +136,10 @@ public class CalendarDatesService : ICalendarDatesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace Tranzor.Databases;
+namespace Tranzor.Context;
 
-public class GTFSContextFactory : IDesignTimeDbContextFactory<GTFSContext>
+public class GtfsDbContextFactory : IDesignTimeDbContextFactory<GtfsDbContext>
 {
-    public GTFSContext CreateDbContext(string[] args)
+    public GtfsDbContext CreateDbContext(string[] args)
     {
         string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         string envPath = Path.Combine(baseDirectory, ".env");
@@ -23,7 +23,7 @@ public class GTFSContextFactory : IDesignTimeDbContextFactory<GTFSContext>
             }
         }
 
-        DbContextOptionsBuilder<GTFSContext> optionsBuilder = new DbContextOptionsBuilder<GTFSContext>();
+        DbContextOptionsBuilder<GtfsDbContext> optionsBuilder = new DbContextOptionsBuilder<GtfsDbContext>();
 
         string? connection = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
         string? dbName = Environment.GetEnvironmentVariable("POSTGRES_DATABASE_NAME");
@@ -37,6 +37,6 @@ public class GTFSContextFactory : IDesignTimeDbContextFactory<GTFSContext>
         optionsBuilder.UseNpgsql(fullConnection, o => o.UseNetTopologySuite())
                       .UseSnakeCaseNamingConvention();
 
-        return new GTFSContext(optionsBuilder.Options);
+        return new GtfsDbContext(optionsBuilder.Options);
     }
 }

@@ -8,7 +8,8 @@ public static class TimeFormatUtil
     {
         if (milliseconds < 0) return simplified ? "0ms" : "0 milliseconds";
 
-        var sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
+        
         long totalSeconds = milliseconds / 1000;
         long remainingMilliseconds = milliseconds % 1000;
         long years = totalSeconds / (365 * 24 * 3600);

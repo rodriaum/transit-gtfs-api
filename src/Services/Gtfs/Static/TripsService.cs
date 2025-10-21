@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
@@ -12,13 +12,13 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class TripsService : ITripsService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<TripsService> _logger;
     private readonly IRedisService _redis;
 
-    public TripsService(GTFSContext dbContext, ILogger<TripsService> logger, IRedisService redis)
+    public TripsService(GtfsDbContext gtfsDBContext, ILogger<TripsService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
@@ -26,14 +26,14 @@ public class TripsService : ITripsService
     public async Task<List<Trip>> GetAllAsync(int page = 1, int pageSize = 100)
     {
         int skip = (page - 1) * pageSize;
-        return await _dbContext.Trips.Skip(skip).Take(pageSize).ToListAsync();
+        return await _gtfsDBContext.Trips.Skip(skip).Take(pageSize).ToListAsync();
     }
 
     public async Task<Trip?> GetByIdAsync(string tripId)
     {
         return await _redis.GetOrSetAsync(
             $"trip-{tripId}",
-            async () => await _dbContext.Trips.FirstOrDefaultAsync(t => t.TripId == tripId)
+            async () => await _gtfsDBContext.Trips.FirstOrDefaultAsync(t => t.TripId == tripId)
         );
     }
 
@@ -44,7 +44,7 @@ public class TripsService : ITripsService
             async () =>
             {
                 var skip = (page - 1) * pageSize;
-                return await _dbContext.Trips.Where(t => t.RouteId == routeId)
+                return await _gtfsDBContext.Trips.Where(t => t.RouteId == routeId)
                                              .Skip(skip)
                                              .Take(pageSize)
                                              .ToListAsync();
@@ -58,7 +58,7 @@ public class TripsService : ITripsService
             $"trips-batch-{string.Join("-", tripIds.OrderBy(id => id))}",
             async () =>
             {
-                List<Trip> trips = await _dbContext.Trips
+                List<Trip> trips = await _gtfsDBContext.Trips
                     .Where(t => tripIds.Contains(t.TripId))
                     .ToListAsync();
 
@@ -88,12 +88,12 @@ public class TripsService : ITripsService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Trips.Select(t => t.TripId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Trips.Select(t => t.TripId.ToLower()).ToListAsync()
             );
 
             List<Trip> entities = new List<Trip>(batchSize);
@@ -157,7 +157,7 @@ public class TripsService : ITripsService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -165,7 +165,7 @@ public class TripsService : ITripsService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -174,7 +174,10 @@ public class TripsService : ITripsService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

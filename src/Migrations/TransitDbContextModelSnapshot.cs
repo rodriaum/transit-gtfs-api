@@ -5,13 +5,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Tranzor.Databases;
+using Tranzor.Context;
 
 #nullable disable
 
 namespace Tranzor.Migrations
 {
-    [DbContext(typeof(GTFSContext))]
+    [DbContext(typeof(GtfsDbContext))]
     partial class TransitDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

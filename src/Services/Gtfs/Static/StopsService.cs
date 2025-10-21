@@ -1,9 +1,9 @@
+using System.Diagnostics;
+using System.Globalization;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using System.Diagnostics;
-using System.Globalization;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
@@ -15,13 +15,13 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class StopsService : IStopsService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<StopsService> _logger;
     private readonly IRedisService _redis;
 
-    public StopsService(GTFSContext dbContext, ILogger<StopsService> logger, IRedisService redis)
+    public StopsService(GtfsDbContext gtfsDBContext, ILogger<StopsService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
@@ -30,11 +30,11 @@ public class StopsService : IStopsService
     {
         int skip = (page - 1) * pageSize;
 
-        IQueryable<Stop> query = _dbContext.Stops;
+        IQueryable<Stop> query = _gtfsDBContext.Stops;
 
         if (!string.IsNullOrEmpty(cityId))
         {
-            List<string> stopIds = await _dbContext.StopCities
+            List<string> stopIds = await _gtfsDBContext.StopCities
                 .Where(city => city.CityId == cityId)
                 .Select(city => city.StopId)
                 .ToListAsync();
@@ -63,7 +63,7 @@ public class StopsService : IStopsService
     {
         return await _redis.GetOrSetAsync(
             $"stop-{stopId}",
-            async () => await _dbContext.Stops.FirstOrDefaultAsync(s => s.StopId == stopId)
+            async () => await _gtfsDBContext.Stops.FirstOrDefaultAsync(s => s.StopId == stopId)
         );
     }
 
@@ -71,7 +71,7 @@ public class StopsService : IStopsService
     {
         Point point = new Point(lon, lat) { SRID = Constant.Wgs84GeometryFactory.SRID };
 
-        return await _dbContext.Stops.Where(s => s.Location != null)
+        return await _gtfsDBContext.Stops.Where(s => s.Location != null)
             .OrderBy(s => s.Location!.Distance(point))
             .Take(limit)
             .ToListAsync();
@@ -84,7 +84,7 @@ public class StopsService : IStopsService
 
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning($"File not found: {filePath}");
+            _logger.LogWarning("File not found: {0}", filePath);
             return;
         }
 
@@ -92,12 +92,12 @@ public class StopsService : IStopsService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
-            HashSet<string> existingIds = [.. await _dbContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()];
-            List<City> cities = await _dbContext.Cities.ToListAsync();
+            HashSet<string> existingIds = [.. await _gtfsDBContext.Stops.Select(s => s.StopId.ToLower()).ToListAsync()];
+            List<City> cities = await _gtfsDBContext.Cities.ToListAsync();
 
             List<Stop> entities = new List<Stop>(batchSize);
             List<StopCity> stopCities = new List<StopCity>(batchSize);
@@ -183,22 +183,22 @@ public class StopsService : IStopsService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
 
-                        await _dbContext.BulkInsertAsync(stopCities);
+                        await _gtfsDBContext.BulkInsertAsync(stopCities);
                         stopCities.Clear();
                     }
                 }
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
 
-                    await _dbContext.BulkInsertAsync(stopCities);
+                    await _gtfsDBContext.BulkInsertAsync(stopCities);
                     stopCities.Clear();
                 }
             }
@@ -206,14 +206,16 @@ public class StopsService : IStopsService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"\nError importing data from {filePath}");
-            return;
         }
     }
 }

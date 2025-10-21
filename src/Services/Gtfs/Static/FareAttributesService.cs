@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Globalization;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
@@ -13,27 +13,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FareAttributesService : IFareAttributesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<FareAttributesService> _logger;
     private readonly IRedisService _redis;
 
-    public FareAttributesService(GTFSContext dbContext, ILogger<FareAttributesService> logger, IRedisService redis)
+    public FareAttributesService(GtfsDbContext gtfsDBContext, ILogger<FareAttributesService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FareAttribute>> GetAllAsync()
     {
-        return await _dbContext.FareAttributes.ToListAsync();
+        return await _gtfsDBContext.FareAttributes.ToListAsync();
     }
 
     public async Task<FareAttribute?> GetByIdAsync(string fareId)
     {
         return await _redis.GetOrSetAsync(
             $"fare-attributes-{fareId}",
-            async () => await _dbContext.FareAttributes.FirstOrDefaultAsync(f => f.FareId == fareId)
+            async () => await _gtfsDBContext.FareAttributes.FirstOrDefaultAsync(f => f.FareId == fareId)
         );
     }
 
@@ -52,12 +52,12 @@ public class FareAttributesService : IFareAttributesService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
+                await _gtfsDBContext.FareAttributes.Select(f => f.FareId.ToLower()).ToListAsync()
             );
 
             List<FareAttribute> entities = new List<FareAttribute>(batchSize);
@@ -119,7 +119,7 @@ public class FareAttributesService : IFareAttributesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -127,7 +127,7 @@ public class FareAttributesService : IFareAttributesService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -136,7 +136,10 @@ public class FareAttributesService : IFareAttributesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

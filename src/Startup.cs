@@ -9,7 +9,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text.Json.Serialization;
 using Tranzor.Context;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Filters;
 using Tranzor.HealthChecks;
 using Tranzor.Interfaces.Config;
@@ -227,7 +227,7 @@ public class Startup
 
     private void ConfigureDatabaseServices(IServiceCollection services)
     {
-        services.AddDbContext<GTFSContext>(options =>
+        services.AddDbContext<GtfsDbContext>(options =>
         {
             string? connection = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
             string? dbName = Environment.GetEnvironmentVariable("POSTGRES_DATABASE_NAME");
@@ -343,7 +343,7 @@ public class Startup
 
         using (IServiceScope scope = app.ApplicationServices.CreateScope())
         {
-            GTFSContext db = scope.ServiceProvider.GetRequiredService<GTFSContext>();
+            GtfsDbContext db = scope.ServiceProvider.GetRequiredService<GtfsDbContext>();
             //db.Database.Migrate();
         }
 

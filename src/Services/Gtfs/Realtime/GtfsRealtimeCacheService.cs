@@ -47,7 +47,7 @@ public class GtfsRealtimeCacheService : IGtfsRealtimeCacheService
 
         switch (fileType)
         {
-            case RealtimeFileType.HTTP:
+            case RealtimeFileType.Http:
                 return await GetHttpFeedAsync(url, cacheKey, cancellationToken);
 
             case RealtimeFileType.WebSocket:

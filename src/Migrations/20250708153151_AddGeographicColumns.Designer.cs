@@ -5,13 +5,13 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Tranzor.Databases;
+using Tranzor.Context;
 
 #nullable disable
 
 namespace Tranzor.Migrations
 {
-    [DbContext(typeof(GTFSContext))]
+    [DbContext(typeof(GtfsDbContext))]
     [Migration("20250708153151_AddGeographicColumns")]
     partial class AddGeographicColumns
     {

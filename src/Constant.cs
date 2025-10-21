@@ -8,19 +8,16 @@ public class Constant
     public static readonly GeometryFactory Wgs84GeometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
 
     public const string ConfigPath = "Config";
-    public const string RootPath = "../Data";
+    private const string RootPath = "../Data";
 
     public static string ExtractPath => Path.Combine(RootPath, "Gtfs", "Normal");
-    public static string ExtractPathRealtime => Path.Combine(RootPath, "Gtfs", "Realtime");
     public static string TempDownloadFolder => Path.GetTempPath();
 
     public const string Name = "Tranzor";
     public const string Version = "1.0.0";
 
-    public const string ModeWalkingKey = "walking";
-    public const string ModeTransitKey = "transit";
-
-    public const int BatchSizeImport = 1000;
+    public const int SqlBatchSizeImport = 1000;
+    public const int CassandraBatchSizeImport = 100;
 
     public static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
 

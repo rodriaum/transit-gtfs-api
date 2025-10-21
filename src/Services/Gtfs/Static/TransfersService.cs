@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class TransfersService : ITransfersService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<TransfersService> _logger;
     private readonly IRedisService _redis;
 
-    public TransfersService(GTFSContext dbContext, ILogger<TransfersService> logger, IRedisService redis)
+    public TransfersService(GtfsDbContext gtfsDBContext, ILogger<TransfersService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Transfer>> GetAllAsync()
     {
-        return await _dbContext.Transfers.ToListAsync();
+        return await _gtfsDBContext.Transfers.ToListAsync();
     }
 
     public async Task<List<Transfer>?> GetByFromStopIdAsync(string fromStopId)
     {
         return await _redis.GetOrSetAsync(
             $"transfers-from-{fromStopId}",
-            async () => await _dbContext.Transfers.Where(t => t.FromStopId == fromStopId).ToListAsync()
+            async () => await _gtfsDBContext.Transfers.Where(t => t.FromStopId == fromStopId).ToListAsync()
         ) ?? new List<Transfer>();
     }
 
@@ -50,12 +50,12 @@ public class TransfersService : ITransfersService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Transfers.Select(t => t.FromStopId.ToLower() + ":" + t.ToStopId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Transfers.Select(t => t.FromStopId.ToLower() + ":" + t.ToStopId.ToLower()).ToListAsync()
             );
 
             List<Transfer> entities = new List<Transfer>(batchSize);
@@ -111,7 +111,7 @@ public class TransfersService : ITransfersService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -119,7 +119,7 @@ public class TransfersService : ITransfersService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -128,7 +128,10 @@ public class TransfersService : ITransfersService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

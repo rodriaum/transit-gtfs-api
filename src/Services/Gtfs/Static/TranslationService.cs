@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class TranslationService : ITranslationService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<TranslationService> _logger;
     private readonly IRedisService _redis;
 
-    public TranslationService(GTFSContext dbContext, ILogger<TranslationService> logger, IRedisService redis)
+    public TranslationService(GtfsDbContext gtfsDBContext, ILogger<TranslationService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<AgencyTranslation>> GetAllAsync()
     {
-        return await _dbContext.Set<AgencyTranslation>().ToListAsync();
+        return await _gtfsDBContext.Set<AgencyTranslation>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -42,12 +42,12 @@ public class TranslationService : ITranslationService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Set<AgencyTranslation>().Select(t => t.TableName.ToLower() + ":" + t.FieldName.ToLower() + ":" + t.Language.ToLower() + ":" + (t.RecordId ?? "")).ToListAsync()
+                await _gtfsDBContext.Set<AgencyTranslation>().Select(t => t.TableName.ToLower() + ":" + t.FieldName.ToLower() + ":" + t.Language.ToLower() + ":" + (t.RecordId ?? "")).ToListAsync()
             );
 
             List<AgencyTranslation> entities = new List<AgencyTranslation>(batchSize);
@@ -107,7 +107,7 @@ public class TranslationService : ITranslationService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -115,7 +115,7 @@ public class TranslationService : ITranslationService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -124,7 +124,10 @@ public class TranslationService : ITranslationService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

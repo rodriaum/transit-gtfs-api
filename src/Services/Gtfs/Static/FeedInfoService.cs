@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FeedInfoService : IFeedInfoService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<FeedInfoService> _logger;
     private readonly IRedisService _redis;
 
-    public FeedInfoService(GTFSContext dbContext, ILogger<FeedInfoService> logger, IRedisService redis)
+    public FeedInfoService(GtfsDbContext gtfsDBContext, ILogger<FeedInfoService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FeedInfo>> GetAllAsync()
     {
-        return await _dbContext.Set<FeedInfo>().ToListAsync();
+        return await _gtfsDBContext.Set<FeedInfo>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -42,12 +42,12 @@ public class FeedInfoService : IFeedInfoService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Set<FeedInfo>().Select(f => f.FeedPublisherName.ToLower() + ":" + f.FeedPublisherUrl.ToLower()).ToListAsync()
+                await _gtfsDBContext.Set<FeedInfo>().Select(f => f.FeedPublisherName.ToLower() + ":" + f.FeedPublisherUrl.ToLower()).ToListAsync()
             );
 
             List<FeedInfo> entities = new List<FeedInfo>(batchSize);
@@ -107,7 +107,7 @@ public class FeedInfoService : IFeedInfoService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -115,7 +115,7 @@ public class FeedInfoService : IFeedInfoService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -124,7 +124,10 @@ public class FeedInfoService : IFeedInfoService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

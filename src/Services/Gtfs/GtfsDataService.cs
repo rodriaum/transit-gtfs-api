@@ -139,7 +139,7 @@ public class GtfsDataService : IGtfsDataService
                 return;
             }
 
-            _logger.LogInformation($"Starting import of data from {gtfsDirectories.Count} GTFS sources");
+            _logger.LogInformation("Starting import of data from {0} GTFS sources", gtfsDirectories.Count);
 
             List<Agency> existingAgencies = await _agencyService.GetAllAsync();
 
@@ -152,7 +152,7 @@ public class GtfsDataService : IGtfsDataService
 
                 if (gtfsData == null)
                 {
-                    _logger.LogWarning($"No GTFS data configuration found for directory {gtfsDirectoryPath}. Skipping import.");
+                    _logger.LogWarning("No GTFS data configuration found for directory {0}. Skipping import.", gtfsDirectoryPath);
                     continue;
                 }
 
@@ -160,19 +160,19 @@ public class GtfsDataService : IGtfsDataService
 
                 if (string.IsNullOrWhiteSpace(agencyId))
                 {
-                    _logger.LogInformation($"Agency key at index {i} cannot be null.");
+                    _logger.LogInformation("Agency key at index {0} cannot be null.", i);
                     continue;
                 }
 
                 if (existingAgencies.Find(it => !string.IsNullOrWhiteSpace(it.AgencyId) && string.Equals(it.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase)) != null)
                 {
-                    _logger.LogInformation($"Ignoring {gtfsData.AgencyId} becauses already exists.");
+                    _logger.LogInformation("Ignoring {0} becauses already exists.", gtfsData.AgencyId);
                     continue;
                 }
 
-                _logger.LogInformation($"Importing GTFS data from {gtfsDirectoryPath} (Agency: {agencyId})");
+                _logger.LogInformation("Importing GTFS data from {0} (Agency: {1})", gtfsDirectoryPath, agencyId);
 
-                /**
+                /*
                 * Because agencies are very creative with their agency_id, such as SUPER Creative values ​​like "1", "2"
                 * Where several use this, and end up duplicating or replacing, the id will be set manually based on the GtfsData
                 * from the gtfs data list which contains the download url and other information.
@@ -239,10 +239,10 @@ public class GtfsDataService : IGtfsDataService
                 await ImportFileIfExists(gtfsDirectoryPath, "networks.txt", gtfsData.IgnoredFiles,
                     async () => await _networkService.ImportDataAsync(gtfsDirectoryPath));
 
-                _logger.LogInformation($"Data import from {gtfsDirectoryPath} completed successfully");
+                _logger.LogInformation("Data import from {0} completed", gtfsDirectoryPath);
             }
 
-            _logger.LogInformation("Import of all GTFS data completed successfully");
+            _logger.LogInformation("Import of all GTFS data completed");
         }
         catch (Exception ex)
         {
@@ -253,7 +253,7 @@ public class GtfsDataService : IGtfsDataService
             stopwatch.Stop();
 
             string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Total GTFS import duration: {duration}");
+            _logger.LogInformation("Total GTFS import duration: {0}", duration);
         }
     }
 
@@ -272,12 +272,12 @@ public class GtfsDataService : IGtfsDataService
 
         if (File.Exists(filePath))
         {
-            _logger.LogDebug($"Importing {fileName}");
+            _logger.LogDebug("Importing {0}", fileName);
             await importAction();
         }
         else
         {
-            _logger.LogWarning($"File {fileName} not found in {directoryPath}");
+            _logger.LogWarning("File {0} not found in {1}", fileName, directoryPath);
         }
     }
 }

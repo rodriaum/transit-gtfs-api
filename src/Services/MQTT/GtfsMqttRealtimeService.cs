@@ -74,13 +74,13 @@ public class GtfsMqttRealtimeService : IGtfsMqttRealtimeService, IDisposable
                 if (client.IsConnected)
                 {
                     await client.DisconnectAsync();
-                    _logger.LogInformation($"Disconnected MQTT client for: {cacheKey}");
+                    _logger.LogInformation("Disconnected MQTT client for: {0}", cacheKey);
                 }
                 client.Dispose();
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error disconnecting MQTT client for {cacheKey}: {ex.Message}");
+                _logger.LogError("Error disconnecting MQTT client for {0}: {1}", cacheKey, ex.Message);
             }
         }
 

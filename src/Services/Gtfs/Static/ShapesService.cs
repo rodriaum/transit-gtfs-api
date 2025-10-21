@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using System.Diagnostics;
 using System.Globalization;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -13,27 +13,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class ShapesService : IShapesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<ShapesService> _logger;
     private readonly IRedisService _redis;
 
-    public ShapesService(GTFSContext dbContext, ILogger<ShapesService> logger, IRedisService redis)
+    public ShapesService(GtfsDbContext gtfsDBContext, ILogger<ShapesService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Shape>> GetAllAsync()
     {
-        return await _dbContext.Shapes.ToListAsync();
+        return await _gtfsDBContext.Shapes.ToListAsync();
     }
 
     public async Task<List<Shape>?> GetByShapeIdAsync(string shapeId)
     {
         return await _redis.GetOrSetAsync(
             $"shapes-{shapeId}",
-            async () => await _dbContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync()
+            async () => await _gtfsDBContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync()
         );
     }
 
@@ -52,12 +52,12 @@ public class ShapesService : IShapesService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
             );
 
             List<Shape> entities = new List<Shape>(batchSize);
@@ -116,7 +116,7 @@ public class ShapesService : IShapesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -124,7 +124,7 @@ public class ShapesService : IShapesService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -133,7 +133,10 @@ public class ShapesService : IShapesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

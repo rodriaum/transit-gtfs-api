@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,20 +11,20 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FareLegRuleService : IFareLegRuleService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<FareLegRuleService> _logger;
     private readonly IRedisService _redis;
 
-    public FareLegRuleService(GTFSContext dbContext, ILogger<FareLegRuleService> logger, IRedisService redis)
+    public FareLegRuleService(GtfsDbContext gtfsDBContext, ILogger<FareLegRuleService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FareLegRule>> GetAllAsync()
     {
-        return await _dbContext.Set<FareLegRule>().ToListAsync();
+        return await _gtfsDBContext.Set<FareLegRule>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -42,12 +42,12 @@ public class FareLegRuleService : IFareLegRuleService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Set<FareLegRule>().Select(f => f.FareLegRuleId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Set<FareLegRule>().Select(f => f.FareLegRuleId.ToLower()).ToListAsync()
             );
 
             List<FareLegRule> entities = new List<FareLegRule>(batchSize);
@@ -102,7 +102,7 @@ public class FareLegRuleService : IFareLegRuleService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -110,7 +110,7 @@ public class FareLegRuleService : IFareLegRuleService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -119,7 +119,10 @@ public class FareLegRuleService : IFareLegRuleService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }

@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class AgencyService : IAgencyService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<AgencyService> _logger;
     private readonly IRedisService _redis;
 
-    public AgencyService(GTFSContext dbContext, ILogger<AgencyService> logger, IRedisService redis)
+    public AgencyService(GtfsDbContext gtfsDBContext, ILogger<AgencyService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<Agency>> GetAllAsync()
     {
-        return await _dbContext.Agencies.ToListAsync();
+        return await _gtfsDBContext.Agencies.ToListAsync();
     }
 
     public async Task<Agency?> GetByIdAsync(string agencyId)
     {
         return await _redis.GetOrSetAsync(
             $"agency-{agencyId}",
-            async () => await _dbContext.Agencies.FirstOrDefaultAsync(a => string.Equals(a.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase))
+            async () => await _gtfsDBContext.Agencies.FirstOrDefaultAsync(a => string.Equals(a.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase))
         );
     }
 
@@ -50,12 +50,12 @@ public class AgencyService : IAgencyService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingAgencyIds = new(
-                await _dbContext.Agencies.Select(a => a.AgencyId.ToLower()).ToListAsync()
+                await _gtfsDBContext.Agencies.Select(a => a.AgencyId.ToLower()).ToListAsync()
             );
 
             List<Agency> entities = new List<Agency>(batchSize);
@@ -118,7 +118,7 @@ public class AgencyService : IAgencyService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                         existingAgencyIds.Add(agencyIdValue.ToLower());
@@ -127,7 +127,7 @@ public class AgencyService : IAgencyService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
 
@@ -141,7 +141,10 @@ public class AgencyService : IAgencyService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({0})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
 

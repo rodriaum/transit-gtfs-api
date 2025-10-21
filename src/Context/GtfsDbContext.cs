@@ -2,11 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Tranzor.Models;
 using Tranzor.Models.External;
 
-namespace Tranzor.Databases;
+namespace Tranzor.Context;
 
-public class GTFSContext : DbContext
+public class GtfsDbContext : DbContext
 {
-    public GTFSContext(DbContextOptions<GTFSContext> options) : base(options) { }
+    public GtfsDbContext(DbContextOptions<GtfsDbContext> options) : base(options) { }
 
     public DbSet<Agency> Agencies { get; set; }
     public DbSet<Calendar> Calendars { get; set; }

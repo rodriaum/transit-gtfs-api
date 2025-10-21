@@ -1,7 +1,7 @@
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,27 +11,27 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FareRulesService : IFareRulesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDBContext;
     private readonly ILogger<FareRulesService> _logger;
     private readonly IRedisService _redis;
 
-    public FareRulesService(GTFSContext dbContext, ILogger<FareRulesService> logger, IRedisService redis)
+    public FareRulesService(GtfsDbContext gtfsDBContext, ILogger<FareRulesService> logger, IRedisService redis)
     {
-        _dbContext = dbContext;
+        _gtfsDBContext = gtfsDBContext;
         _logger = logger;
         _redis = redis;
     }
 
     public async Task<List<FareRule>> GetAllAsync()
     {
-        return await _dbContext.FareRules.ToListAsync();
+        return await _gtfsDBContext.FareRules.ToListAsync();
     }
 
     public async Task<List<FareRule>?> GetByFareIdAsync(string fareId)
     {
         return await _redis.GetOrSetAsync(
             $"fare-rules-{fareId}",
-            async () => await _dbContext.FareRules.Where(f => f.FareId == fareId).ToListAsync()
+            async () => await _gtfsDBContext.FareRules.Where(f => f.FareId == fareId).ToListAsync()
         );
     }
 
@@ -50,12 +50,12 @@ public class FareRulesService : IFareRulesService
         {
             _logger.LogInformation($"Starting data import process from {filePath}");
 
-            int batchSize = Constant.BatchSizeImport;
+            int batchSize = Constant.SqlBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
             HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.FareRules.Select(f => f.FareId.ToLower() + ":" + (f.RouteId ?? "").ToLower() + ":" + (f.OriginId ?? "").ToLower() + ":" + (f.DestinationId ?? "").ToLower() + ":" + (f.ContainsId ?? "").ToLower()).ToListAsync()
+                await _gtfsDBContext.FareRules.Select(f => f.FareId.ToLower() + ":" + (f.RouteId ?? "").ToLower() + ":" + (f.OriginId ?? "").ToLower() + ":" + (f.DestinationId ?? "").ToLower() + ":" + (f.ContainsId ?? "").ToLower()).ToListAsync()
             );
 
             List<FareRule> entities = new List<FareRule>(batchSize);
@@ -115,7 +115,7 @@ public class FareRulesService : IFareRulesService
 
                     if (entities.Count >= batchSize)
                     {
-                        await _dbContext.BulkInsertAsync(entities);
+                        await _gtfsDBContext.BulkInsertAsync(entities);
                         totalImported += entities.Count;
                         entities.Clear();
                     }
@@ -123,7 +123,7 @@ public class FareRulesService : IFareRulesService
 
                 if (entities.Count > 0)
                 {
-                    await _dbContext.BulkInsertAsync(entities);
+                    await _gtfsDBContext.BulkInsertAsync(entities);
                     totalImported += entities.Count;
                     entities.Clear();
                 }
@@ -132,7 +132,10 @@ public class FareRulesService : IFareRulesService
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
+                "Inserted {0} records from {1} in database with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
                 TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }
