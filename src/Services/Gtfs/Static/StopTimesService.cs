@@ -31,10 +31,10 @@ public class StopTimesService : IStopTimesService
     private IQueryable<string> GetActiveServiceIds(DateTime date)
     {
         DateOnly dateOnly = DateOnly.FromDateTime(date);
-        
+
         string dayOfWeek = date.DayOfWeek.ToString().ToLower();
         string dayColumn = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
-        
+
         IQueryable<string> calendarQuery = _gtfsDbContext.Calendars
             .Where(c => EF.Functions.ToDate(EF.Property<string>(c, "StartDate"), "YYYYMMDD") <= dateOnly &&
                         EF.Functions.ToDate(EF.Property<string>(c, "EndDate"), "YYYYMMDD") >= dateOnly &&
@@ -43,17 +43,19 @@ public class StopTimesService : IStopTimesService
 
         return calendarQuery
             .Union(_gtfsDbContext.CalendarDates
-                .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
+                .Where(cd =>
+                    EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
                 .Select(cd => cd.ServiceId))
             .Except(_gtfsDbContext.CalendarDates
-                .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
+                .Where(cd =>
+                    EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
                 .Select(cd => cd.ServiceId));
     }
 
     public async Task<List<StopTime>> GetAllAsync(int page = 1, int pageSize = 100)
     {
         ISession session = await _cassandraService.GetSessionAsync();
-        
+
         string query = "SELECT * FROM stop_times LIMIT ?";
         PreparedStatement prepared = await session.PrepareAsync(query);
         BoundStatement bound = prepared.Bind(pageSize);
@@ -73,74 +75,101 @@ public class StopTimesService : IStopTimesService
     {
         DateTime date = DateTime.Now;
 
-                ISession session = await _cassandraService.GetSessionAsync();
+        ISession session = await _cassandraService.GetSessionAsync();
 
-                if (!ignoreCalendar)
-                {
-                    List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
+        if (!ignoreCalendar)
+        {
+            List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
 
-                    Trip? trip = await _gtfsDbContext.Trips
-                        .Where(t => t.TripId == tripId && activeServiceIds.Contains(t.ServiceId))
-                        .FirstOrDefaultAsync();
+            Trip? trip = await _gtfsDbContext.Trips
+                .Where(t => t.TripId == tripId && activeServiceIds.Contains(t.ServiceId))
+                .FirstOrDefaultAsync();
 
-                    if (trip == null)
-                    {
-                        return new List<StopTime>();
-                    }
-                }
+            if (trip == null)
+            {
+                return new List<StopTime>();
+            }
+        }
 
-                string query = "SELECT * FROM stop_times WHERE trip_id = ? ORDER BY stop_sequence ASC";
-                PreparedStatement prepared = await session.PrepareAsync(query);
-                BoundStatement bound = prepared.Bind(tripId);
+        string query = "SELECT * FROM stop_times WHERE trip_id = ? ORDER BY stop_sequence ASC";
+        PreparedStatement prepared = await session.PrepareAsync(query);
+        BoundStatement bound = prepared.Bind(tripId);
 
-                RowSet rowSet = await session.ExecuteAsync(bound);
-                List<StopTime> stopTimes = new List<StopTime>();
+        RowSet rowSet = await session.ExecuteAsync(bound);
+        List<StopTime> stopTimes = new List<StopTime>();
 
-                foreach (Row row in rowSet)
-                {
-                    stopTimes.Add(MapRowToStopTime(row));
-                }
+        foreach (Row row in rowSet)
+        {
+            stopTimes.Add(MapRowToStopTime(row));
+        }
 
-                return stopTimes;
+        return stopTimes;
     }
 
-    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int page = 1, int pageSize = 100, bool ignoreCalendar = false)
+    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int? page = null, int? pageSize = null,
+        bool ignoreCalendar = false)
     {
         DateTime date = DateTime.Now;
-        
-                ISession session = await _cassandraService.GetSessionAsync();
 
-                string query = "SELECT * FROM stop_times WHERE stop_id = ? ALLOW FILTERING";
-                PreparedStatement prepared = await session.PrepareAsync(query);
-                BoundStatement bound = prepared.Bind(stopId);
+        ISession session = await _cassandraService.GetSessionAsync();
 
-                RowSet rowSet = await session.ExecuteAsync(bound);
-                List<StopTime> allStopTimes = new List<StopTime>();
+        string query = "SELECT * FROM stop_times WHERE stop_id = ? ALLOW FILTERING";
 
-                foreach (Row row in rowSet)
-                {
-                    allStopTimes.Add(MapRowToStopTime(row));
-                }
+        PreparedStatement prepared = await session.PrepareAsync(query);
+        BoundStatement bound = prepared.Bind(stopId);
 
-                if (!ignoreCalendar)
-                {
-                    List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
-                    List<string> activeTripIds = await _gtfsDbContext.Trips
-                        .Where(t => activeServiceIds.Contains(t.ServiceId))
-                        .Select(t => t.TripId)
-                        .ToListAsync();
+        RowSet rowSet = await session.ExecuteAsync(bound);
+        List<StopTime> allStopTimes = new List<StopTime>();
 
-                    allStopTimes = allStopTimes
-                        .Where(st => activeTripIds.Contains(st.TripId))
-                        .ToList();
-                }
+        foreach (Row row in rowSet)
+        {
+            allStopTimes.Add(MapRowToStopTime(row));
+        }
 
-                return allStopTimes
-                    .OrderBy(st => TimeFormatUtil.ParseGtfsTime(st.ArrivalTime))
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
+        if (!ignoreCalendar)
+        {
+            List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
+            List<string> activeTripIds = await _gtfsDbContext.Trips
+                .Where(t => activeServiceIds.Contains(t.ServiceId))
+                .Select(t => t.TripId)
+                .ToListAsync();
 
+            allStopTimes = allStopTimes
+                .Where(st => activeTripIds.Contains(st.TripId))
+                .ToList();
+        }
+
+        if (page == null || pageSize == null)
+        {
+            return allStopTimes
+                .OrderBy(st => TimeFormatUtil.ParseGtfsTime(st.ArrivalTime))
+                .ToList();
+        }
+
+        return allStopTimes
+            .OrderBy(st => TimeFormatUtil.ParseGtfsTime(st.ArrivalTime))
+            .Skip(((int)page - 1) * (int)pageSize)
+            .Take((int)pageSize)
+            .ToList();
+    }
+
+    public async Task<List<StopTime>?> GetUpcomingDeparturesByStopIdAsync(string stopId, int page = 1,
+        int pageSize = 100,
+        bool ignoreCalendar = false, DateTime? referenceTime = null)
+    {
+        List<StopTime>? stopTimes = await GetByStopIdAsync(stopId, ignoreCalendar: ignoreCalendar);
+
+        if (stopTimes == null || stopTimes.Count == 0)
+            return new List<StopTime>();
+
+        DateTime reference = referenceTime ?? DateTime.Now;
+
+        return stopTimes
+            .Where(st => st.DepartureTimeSpan > reference.TimeOfDay)
+            .OrderBy(st => st.DepartureTimeSpan)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -149,7 +178,7 @@ public class StopTimesService : IStopTimesService
         string filePath = Path.Combine(directoryPath, "stop_times.txt");
 
         List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
-        
+
         if (csvData.Count == 0)
         {
             return;
@@ -174,7 +203,7 @@ public class StopTimesService : IStopTimesService
                     stop_headsign, pickup_type, drop_off_type, shape_dist_traveled, timepoint
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             ";
-            
+
             PreparedStatement insertPrepared = await session.PrepareAsync(insertQuery);
 
             BatchStatement batch = new BatchStatement();
@@ -208,7 +237,8 @@ public class StopTimesService : IStopTimesService
                     rowData.GetValueOrDefault("stop_headsign", null),
                     pickupTypeId != -1 ? pickupTypeId : (int?)null,
                     dropOffTypeId != -1 ? dropOffTypeId : (int?)null,
-                    NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
+                    NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null),
+                        format: CultureInfo.InvariantCulture),
                     timepointId != -1 ? timepointId : (int?)null
                 );
 
