@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.Json.Serialization;
 using AspNetCoreRateLimit;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -6,21 +8,30 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
+using Polly.Extensions.Http;
 using Serilog;
-using System.Text.Json.Serialization;
 using Tranzor.Context;
-using Tranzor.Databases;
 using Tranzor.Filters;
 using Tranzor.HealthChecks;
 using Tranzor.Interfaces.Config;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs;
+using Tranzor.Interfaces.Gtfs.External;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
+using Tranzor.Interfaces.Http;
+using Tranzor.Interfaces.MQTT;
 using Tranzor.Services.Config;
+using Tranzor.Services.Database;
+using Tranzor.Services.External;
 using Tranzor.Services.Gtfs;
 using Tranzor.Services.Gtfs.Realtime;
 using Tranzor.Services.Gtfs.Static;
+using Tranzor.Services.Http;
+using Tranzor.Services.MQTT;
+using Tranzor.Services.OTP;
+using Tranzor.Utils;
 
 namespace Tranzor;
 
@@ -28,34 +39,21 @@ public class Startup
 {
     public Startup(IConfiguration configuration)
     {
-        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string envPath = Path.Combine(baseDirectory, ".env");
+        bool isRunningInDocker = File.Exists("/.dockerenv");
 
-        Log.Information($"Trying to load .env file from path: {Path.GetFullPath(envPath)}");
-
-        if (File.Exists(envPath))
+        if (!isRunningInDocker)
         {
-            Log.Information(".env file found!");
-            Env.Load(envPath);
-            Log.Information(".env file loaded successfully!");
-        }
-        else
-        {
-            Log.Warning(".env file not found in bin directory!");
+            string? path = FileUtil.ResolvePath(".env");
 
-            string rootPath = Path.Combine(baseDirectory, "..", "..", "..", "..", ".env");
-            Log.Information($"Trying to load from root directory: {Path.GetFullPath(rootPath)}");
-
-            if (File.Exists(rootPath))
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
             {
-                Log.Information(".env file found in root directory!");
-                Env.Load(rootPath);
-                Log.Information(".env file loaded successfully!");
+                Env.Load(path);
+                Log.Information("Environment file found and loaded successfully.");
             }
             else
             {
-                Log.Error("ERROR: .env file not found in any location!");
-                Log.Information("Please create a .env file in the project root");
+                Log.Error("ERROR: environment file not found in any location...");
+                Log.Information("Please create a environment file in the project root");
                 Environment.Exit(1);
             }
         }
@@ -76,11 +74,11 @@ public class Startup
             if (string.IsNullOrWhiteSpace(value))
             {
                 missingVars.Add(envVar);
-                logger.LogError($"Required environment variable not found: {envVar}");
+                logger.LogError("Required environment variable not found: {0}", envVar);
             }
             else
             {
-                logger.LogInformation($"Loaded environment variable: {envVar}");
+                logger.LogInformation("Loaded environment variable: {0}", envVar);
             }
         }
 
@@ -124,21 +122,21 @@ public class Startup
         });
 
         services.AddControllers(options =>
-        {
-            options.Filters.Add<ValidateModelStateFilter>();
-            options.Filters.Add<SanitizeInputFilter>();
-            options.CacheProfiles.Add("Default", new CacheProfile
             {
-                Duration = 60,
-                Location = ResponseCacheLocation.Any
+                options.Filters.Add<ValidateModelStateFilter>();
+                options.Filters.Add<SanitizeInputFilter>();
+                options.CacheProfiles.Add("Default", new CacheProfile
+                {
+                    Duration = 60,
+                    Location = ResponseCacheLocation.Any
+                });
+            })
+            .AddJsonOptions(opts =>
+            {
+                opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
+                opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                opts.JsonSerializerOptions.MaxDepth = 64;
             });
-        })
-        .AddJsonOptions(opts =>
-        {
-            opts.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
-            opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            opts.JsonSerializerOptions.MaxDepth = 64;
-        });
 
         services.AddResponseCaching();
 
@@ -177,31 +175,35 @@ public class Startup
     private void ConfigureSecurityServices(IServiceCollection services)
     {
         services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
-        {
-            options.TokenValidationParameters = new TokenValidationParameters
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ClockSkew = TimeSpan.Zero
-            };
-        });
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
 
         services.AddCors(options =>
         {
             options.AddDefaultPolicy(builder =>
             {
-                builder.WithOrigins(Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
-                       .WithMethods(Configuration.GetSection("Cors:AllowedMethods").Get<string[]>() ?? Array.Empty<string>())
-                       .WithHeaders(Configuration.GetSection("Cors:AllowedHeaders").Get<string[]>() ?? Array.Empty<string>())
-                       .WithExposedHeaders(Configuration.GetSection("Cors:ExposedHeaders").Get<string[]>() ?? Array.Empty<string>())
-                       .SetPreflightMaxAge(TimeSpan.FromSeconds(Configuration.GetValue<int>("Cors:MaxAge", 3600)));
+                builder.WithOrigins(Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ??
+                                    Array.Empty<string>())
+                    .WithMethods(Configuration.GetSection("Cors:AllowedMethods").Get<string[]>() ??
+                                 Array.Empty<string>())
+                    .WithHeaders(Configuration.GetSection("Cors:AllowedHeaders").Get<string[]>() ??
+                                 Array.Empty<string>())
+                    .WithExposedHeaders(Configuration.GetSection("Cors:ExposedHeaders").Get<string[]>() ??
+                                        Array.Empty<string>())
+                    .SetPreflightMaxAge(TimeSpan.FromSeconds(Configuration.GetValue<int>("Cors:MaxAge", 3600)));
             });
         });
 
@@ -223,7 +225,7 @@ public class Startup
 
     private void ConfigureDatabaseServices(IServiceCollection services)
     {
-        services.AddDbContext<GTFSContext>(options =>
+        services.AddDbContext<GtfsDbContext>(options =>
         {
             string? connection = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
             string? dbName = Environment.GetEnvironmentVariable("POSTGRES_DATABASE_NAME");
@@ -234,6 +236,9 @@ public class Startup
                 .UseNpgsql(fullConnection, o => o.UseNetTopologySuite())
                 .UseSnakeCaseNamingConvention();
         });
+
+        services.AddScoped<IPostgresService, PostgresService>();
+        services.AddSingleton<ICassandraService, CassandraService>();
     }
 
     private void ConfigureCacheServices(IServiceCollection services)
@@ -268,6 +273,7 @@ public class Startup
         services.AddScoped<IFeedInfoService, FeedInfoService>();
         services.AddSingleton<IGtfsFileService, GtfsFileService>();
         services.AddSingleton<IGtfsRealtimeCacheService, GtfsRealtimeCacheService>();
+        services.AddSingleton<IGtfsMqttRealtimeService, GtfsMqttRealtimeService>();
         services.AddScoped<ITranslationService, TranslationService>();
         services.AddScoped<IAttributionService, AttributionService>();
         services.AddScoped<IStopAreaService, StopAreaService>();
@@ -275,7 +281,45 @@ public class Startup
         services.AddScoped<IFareLegRuleService, FareLegRuleService>();
         services.AddScoped<IFareProductService, FareProductService>();
         services.AddScoped<INetworkService, NetworkService>();
-        services.AddScoped<IGtfsRouterService, GtfsRouterService>();
+        services.AddScoped<IOpenTripPlannerService, OpenTripPlannerService>();
+        services.AddScoped<ICityService, CityService>();
+        
+        services.AddHttpClient<IOtpHttpClient, OtpHttpClient>()
+            .AddPolicyHandler(GetRetryPolicy())
+            .AddPolicyHandler(GetCircuitBreakerPolicy())
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+    }
+
+    private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+    {
+        return HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
+            .WaitAndRetryAsync(
+                retryCount: 3,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (outcome, timespan, retryCount, context) =>
+                {
+                    Log.Warning("Retry {RetryCount} after {Delay}s due to: {Result}", 
+                        retryCount, timespan.TotalSeconds, outcome.Result?.StatusCode);
+                });
+    }
+
+    private static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+    {
+        return HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .CircuitBreakerAsync(
+                handledEventsAllowedBeforeBreaking: 5,
+                durationOfBreak: TimeSpan.FromSeconds(30),
+                onBreak: (outcome, duration) =>
+                {
+                    Log.Error("[Circuit Breaker] OPEN for {Duration}s due to: {Result}", 
+                        duration.TotalSeconds, outcome.Result?.StatusCode);
+                },
+                onReset: () => Log.Information("[Circuit Breaker] CLOSED - Connection reestablished"),
+                onHalfOpen: () => Log.Warning("[Circuit Breaker] HALF-OPEN - Testing connection")
+            );
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)
@@ -297,7 +341,8 @@ public class Startup
         });
     }
 
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider serviceProvider, ILogger<Startup> logger)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider serviceProvider,
+        ILogger<Startup> logger)
     {
         ValidateEnvironmentVariables(logger);
 
@@ -331,12 +376,6 @@ public class Startup
         app.UseResponseCaching();
         app.UseResponseCompression();
 
-        using (IServiceScope scope = app.ApplicationServices.CreateScope())
-        {
-            GTFSContext db = scope.ServiceProvider.GetRequiredService<GTFSContext>();
-            db.Database.Migrate();
-        }
-
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
@@ -350,9 +389,37 @@ public class Startup
     {
         IConfigService configService = serviceProvider.GetRequiredService<IConfigService>();
         IGtfsDataService gtfsDataService = serviceProvider.GetRequiredService<IGtfsDataService>();
+        ICassandraService cassandraService = serviceProvider.GetRequiredService<ICassandraService>();
 
         try
         {
+            // Start Postgres
+            using (var scope = serviceProvider.CreateScope())
+            {
+                IPostgresService postgresService = scope.ServiceProvider.GetRequiredService<IPostgresService>();
+                postgresService.InitializeAsync().Wait();
+            }
+
+            // Start Redis
+            IRedisService redisService = serviceProvider.GetRequiredService<IRedisService>();
+
+            Task.Run(async () =>
+            {
+                bool isAvailable = await redisService.IsRedisAvailable();
+                if (isAvailable)
+                {
+                    await redisService.RSetupAsync();
+                    logger.LogInformation("[Redis] Connection verified successfully");
+                }
+                else
+                {
+                    logger.LogWarning("[Redis] Not available, caching will be disabled");
+                }
+            }).Wait();
+
+            // Start Cassandra
+            cassandraService.InitializeAsync().Wait();
+
             configService.InitializeAsync().Wait();
 
             if (!GtfsDataContext.Finish)
@@ -362,7 +429,7 @@ public class Startup
         }
         catch (Exception ex)
         {
-            logger.LogError($"Unable to configure GTFS data service.\n -> {ex.Message}");
+            logger.LogError($"Unable to start the system.\n -> {ex.Message}");
             Task.Delay(5000).Wait();
             Environment.Exit(0);
         }

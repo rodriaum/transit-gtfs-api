@@ -1,126 +1,191 @@
-﻿using EFCore.BulkExtensions;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
-using Tranzor.Databases;
+using Cassandra;
+using Microsoft.EntityFrameworkCore;
+using Tranzor.Context;
 using Tranzor.Enums;
 using Tranzor.Interfaces.Database;
-using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
 using Tranzor.Utils;
+using ISession = Cassandra.ISession;
 
 namespace Tranzor.Services.Gtfs.Static;
 
 public class StopTimesService : IStopTimesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDbContext;
+    private readonly ICassandraService _cassandraService;
+    private readonly IRedisService _redisService;
     private readonly ILogger<StopTimesService> _logger;
-    private readonly IRedisService _redis;
-    private readonly IGtfsRealtimeCacheService _realtimeService;
 
     public StopTimesService(
-        GTFSContext dbContext,
-        ILogger<StopTimesService> logger,
-        IRedisService redis,
-        IGtfsRealtimeCacheService realtimeService)
+        GtfsDbContext gtfsDbContext,
+        ICassandraService cassandraService,
+        IRedisService redisService,
+        ILogger<StopTimesService> logger)
     {
-        _dbContext = dbContext;
+        _gtfsDbContext = gtfsDbContext;
+        _cassandraService = cassandraService;
+        _redisService = redisService;
         _logger = logger;
-        _redis = redis;
-        _realtimeService = realtimeService;
     }
 
-    private IQueryable<string> GetActiveServiceIds(DateTime date)
+    private async Task<List<string>> GetActiveServiceIdsAsync(DateTime date)
     {
+        string cacheKey = $"active_service_ids:{date:yyyy-MM-dd}";
+        
+        List<String>? cachedServiceIds = await _redisService.GetAsync<List<string>>(cacheKey);
+        
+        if (cachedServiceIds != null)
+        {
+            return cachedServiceIds;
+        }
+
         DateOnly dateOnly = DateOnly.FromDateTime(date);
         string dayOfWeek = date.DayOfWeek.ToString().ToLower();
         string dayColumn = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
 
-        string sqlDate = date.ToString("yyyy-MM-dd");
-
-        IQueryable<string> calendarQuery = _dbContext.Calendars
+        IQueryable<string> calendarQuery = _gtfsDbContext.Calendars
             .Where(c => EF.Functions.ToDate(EF.Property<string>(c, "StartDate"), "YYYYMMDD") <= dateOnly &&
                         EF.Functions.ToDate(EF.Property<string>(c, "EndDate"), "YYYYMMDD") >= dateOnly &&
                         EF.Property<int>(c, dayColumn) == (int)StatusType.Active)
             .Select(c => c.ServiceId);
 
-        return calendarQuery
-            .Union(_dbContext.CalendarDates
-                .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
+        var serviceIds = await calendarQuery
+            .Union(_gtfsDbContext.CalendarDates
+                .Where(cd =>
+                    EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
                 .Select(cd => cd.ServiceId))
-            .Except(_dbContext.CalendarDates
-                .Where(cd => EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
-                .Select(cd => cd.ServiceId));
+            .Except(_gtfsDbContext.CalendarDates
+                .Where(cd =>
+                    EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
+                .Select(cd => cd.ServiceId))
+            .ToListAsync();
+
+        await _redisService.SetAsync(cacheKey, serviceIds, TimeSpan.FromHours(1));
+
+        return serviceIds;
     }
 
     public async Task<List<StopTime>> GetAllAsync(int page = 1, int pageSize = 100)
     {
-        int skip = (page - 1) * pageSize;
-        return await _dbContext.StopTimes.Skip(skip).Take(pageSize).ToListAsync();
+        ISession session = await _cassandraService.GetSessionAsync();
+
+        string query = "SELECT * FROM stop_times LIMIT ?";
+        PreparedStatement prepared = await session.PrepareAsync(query);
+        BoundStatement bound = prepared.Bind(pageSize);
+
+        RowSet rowSet = await session.ExecuteAsync(bound);
+        List<StopTime> stopTimes = new List<StopTime>();
+
+        foreach (Row row in rowSet)
+        {
+            stopTimes.Add(MapRowToStopTime(row));
+        }
+
+        return stopTimes;
     }
 
     public async Task<List<StopTime>?> GetByTripIdAsync(string tripId, bool ignoreCalendar = false)
     {
         DateTime date = DateTime.Now;
 
-        string keySource = $"stop-times-trip-{tripId}-{ignoreCalendar}-{date.ToString("yyyyMMdd")}";
-        string cacheKey = StringUtils.GenerateHash(keySource);
+        ISession session = await _cassandraService.GetSessionAsync();
 
-        return await _redis.GetOrSetAsync(
-            cacheKey,
-            async () =>
+        if (!ignoreCalendar)
+        {
+            List<string> activeServiceIds = await GetActiveServiceIdsAsync(date);
+
+            Trip? trip = await _gtfsDbContext.Trips
+                .Where(t => t.TripId == tripId && activeServiceIds.Contains(t.ServiceId))
+                .FirstOrDefaultAsync();
+
+            if (trip == null)
             {
-                IQueryable<StopTime> query = _dbContext.StopTimes.Where(st => st.TripId == tripId);
-
-                if (!ignoreCalendar)
-                {
-                    IQueryable<string> activeServiceIds = GetActiveServiceIds(date);
-
-                    query = from st in query
-                            join trip in _dbContext.Trips on st.TripId equals trip.TripId
-                            where activeServiceIds.Contains(trip.ServiceId)
-                            select st;
-                }
-
-                return await query
-                    .OrderBy(st => st.StopSequence)
-                    .ToListAsync();
+                return new List<StopTime>();
             }
-        );
+        }
+
+        string query = "SELECT * FROM stop_times WHERE trip_id = ? ORDER BY stop_sequence ASC";
+        PreparedStatement prepared = await session.PrepareAsync(query);
+        BoundStatement bound = prepared.Bind(tripId);
+
+        RowSet rowSet = await session.ExecuteAsync(bound);
+        List<StopTime> stopTimes = new List<StopTime>();
+
+        foreach (Row row in rowSet)
+        {
+            stopTimes.Add(MapRowToStopTime(row));
+        }
+
+        return stopTimes;
     }
 
-    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int page = 1, int pageSize = 100, bool ignoreCalendar = false)
+    public async Task<List<StopTime>?> GetByStopIdAsync(string stopId, int? page = null, int? pageSize = null,
+        bool ignoreCalendar = false)
     {
         DateTime date = DateTime.Now;
 
-        string keySource = $"stop-times-stop-{stopId}-{page}-{pageSize}-{ignoreCalendar}-{date.ToString("yyyyMMdd")}";
-        string cacheKey = StringUtils.GenerateHash(keySource);
+        ISession session = await _cassandraService.GetSessionAsync();
 
-        return await _redis.GetOrSetAsync(
-            cacheKey,
-            async () =>
-            {
-                IQueryable<StopTime> query = _dbContext.StopTimes.Where(st => st.StopId == stopId);
+        string query = "SELECT * FROM stop_times WHERE stop_id = ?";
 
-                if (!ignoreCalendar)
-                {
-                    IQueryable<string> activeServiceIds = GetActiveServiceIds(date);
+        PreparedStatement prepared = await session.PrepareAsync(query);
+        BoundStatement bound = prepared.Bind(stopId);
 
-                    query = from st in query
-                            join trip in _dbContext.Trips on st.TripId equals trip.TripId
-                            where activeServiceIds.Contains(trip.ServiceId)
-                            select st;
-                }
+        RowSet rowSet = await session.ExecuteAsync(bound);
+        List<StopTime> allStopTimes = new List<StopTime>();
 
-                return await query
-                    .OrderBy(st => st.ArrivalTime)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-            }
-        ) ?? new List<StopTime>();
+        foreach (Row row in rowSet)
+        {
+            allStopTimes.Add(MapRowToStopTime(row));
+        }
+
+        if (!ignoreCalendar)
+        {
+            List<string> activeServiceIds = await GetActiveServiceIdsAsync(date);
+            List<string> activeTripIds = await _gtfsDbContext.Trips
+                .Where(t => activeServiceIds.Contains(t.ServiceId))
+                .Select(t => t.TripId)
+                .ToListAsync();
+
+            allStopTimes = allStopTimes
+                .Where(st => activeTripIds.Contains(st.TripId))
+                .ToList();
+        }
+
+        if (page == null || pageSize == null)
+        {
+            return allStopTimes
+                .OrderBy(st => TimeFormatUtil.ParseGtfsTime(st.ArrivalTime))
+                .ToList();
+        }
+
+        return allStopTimes
+            .OrderBy(st => TimeFormatUtil.ParseGtfsTime(st.ArrivalTime))
+            .Skip(((int)page - 1) * (int)pageSize)
+            .Take((int)pageSize)
+            .ToList();
+    }
+
+    public async Task<List<StopTime>?> GetUpcomingDeparturesByStopIdAsync(string stopId, int page = 1,
+        int pageSize = 100,
+        bool ignoreCalendar = false, DateTime? referenceTime = null)
+    {
+        List<StopTime>? stopTimes = await GetByStopIdAsync(stopId, ignoreCalendar: ignoreCalendar);
+
+        if (stopTimes == null || stopTimes.Count == 0)
+            return new List<StopTime>();
+
+        DateTime reference = referenceTime ?? DateTime.Now;
+
+        return stopTimes
+            .Where(st => st.DepartureTimeSpan > reference.TimeOfDay)
+            .OrderBy(st => st.DepartureTimeSpan)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
     }
 
     public async Task ImportDataAsync(string directoryPath)
@@ -128,112 +193,123 @@ public class StopTimesService : IStopTimesService
         Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "stop_times.txt");
 
-        if (!File.Exists(filePath))
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
+
+        if (csvData.Count == 0)
         {
-            _logger.LogWarning($"File not found: {filePath}");
             return;
         }
 
         try
         {
-            _logger.LogInformation($"Starting data import process from {filePath}");
+            _logger.LogInformation("Starting data import process to Cassandra from {FilePath}", filePath);
 
-            int batchSize = Constant.BatchSizeImport;
+            ISession session = await _cassandraService.GetSessionAsync();
+
+            int batchSize = Constant.CassandraBatchSizeImport;
             int totalImported = 0;
             int totalIgnored = 0;
 
-            HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.StopTimes.Select(st => st.TripId.ToLower() + ":" + st.StopId.ToLower() + ":" + st.StopSequence.ToString()).ToListAsync()
-            );
+            string checkQuery = "SELECT trip_id, stop_sequence FROM stop_times WHERE trip_id = ? AND stop_sequence = ?";
+            PreparedStatement checkPrepared = await session.PrepareAsync(checkQuery);
 
-            List<StopTime> entities = new List<StopTime>(batchSize);
+            string insertQuery = @"
+                INSERT INTO stop_times (
+                    id, trip_id, arrival_time, departure_time, stop_id, stop_sequence,
+                    stop_headsign, pickup_type, drop_off_type, shape_dist_traveled, timepoint
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ";
 
-            using (StreamReader reader = new StreamReader(filePath))
+            PreparedStatement insertPrepared = await session.PrepareAsync(insertQuery);
+
+            BatchStatement batch = new BatchStatement();
+            int batchCount = 0;
+
+            foreach (var rowData in csvData)
             {
-                string? headerLine = await reader.ReadLineAsync();
+                string tripId = rowData.GetValueOrDefault("trip_id", "") ?? "";
+                int stopSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("stop_sequence", null));
 
-                if (string.IsNullOrWhiteSpace(headerLine))
+                BoundStatement checkBound = checkPrepared.Bind(tripId, stopSequence);
+                RowSet existingRows = await session.ExecuteAsync(checkBound);
+
+                if (existingRows.Any())
                 {
-                    _logger.LogWarning($"No data found in {filePath}");
-                    return;
+                    totalIgnored++;
+                    continue;
                 }
 
-                string[] headers = headerLine.Split(',');
-                string? line;
+                int pickupTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("pickup_type", null), -1);
+                int dropOffTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("drop_off_type", null), -1);
+                int timepointId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("timepoint", null), -1);
 
-                while ((line = await reader.ReadLineAsync()) != null)
+                BoundStatement insertBound = insertPrepared.Bind(
+                    Guid.NewGuid().ToString(),
+                    tripId,
+                    rowData.GetValueOrDefault("arrival_time", "") ?? "",
+                    rowData.GetValueOrDefault("departure_time", "") ?? "",
+                    rowData.GetValueOrDefault("stop_id", "") ?? "",
+                    stopSequence,
+                    rowData.GetValueOrDefault("stop_headsign", null),
+                    pickupTypeId != -1 ? pickupTypeId : (int?)null,
+                    dropOffTypeId != -1 ? dropOffTypeId : (int?)null,
+                    NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null),
+                        format: CultureInfo.InvariantCulture),
+                    timepointId != -1 ? timepointId : (int?)null
+                );
+
+                batch.Add(insertBound);
+                batchCount++;
+
+                if (batchCount >= batchSize)
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    string[] values = line.Split(',');
-                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
-
-                    for (int j = 0; j < headers.Length; j++)
-                    {
-                        if (j < values.Length)
-                        {
-                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
-                        }
-                    }
-
-                    string tripId = rowData.GetValueOrDefault("trip_id", "") ?? "";
-                    string stopId = rowData.GetValueOrDefault("stop_id", "") ?? "";
-                    int stopSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("stop_sequence", null));
-                    string uniqueKey = tripId.ToLower() + ":" + stopId.ToLower() + ":" + stopSequence.ToString();
-                    if (existingIds.Contains(uniqueKey))
-                    {
-                        totalIgnored++;
-                        continue;
-                    }
-
-                    int pickupTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("pickup_type", null), -1);
-                    int dropOffTypeId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("drop_off_type", null), -1);
-                    int timepointId = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("timepoint", null), -1);
-
-                    StopTime entity = new StopTime
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        TripId = tripId,
-                        ArrivalTime = rowData.GetValueOrDefault("arrival_time", "") ?? "",
-                        DepartureTime = rowData.GetValueOrDefault("departure_time", "") ?? "",
-                        StopId = stopId,
-                        StopSequence = stopSequence,
-                        StopHeadsign = rowData.GetValueOrDefault("stop_headsign", null),
-                        PickupType = pickupTypeId != -1 ? EnumUtil.FromValue<PickupType>(pickupTypeId) : null,
-                        DropOffType = dropOffTypeId != -1 ? dropOffTypeId : null,
-                        ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
-                        Timepoint = timepointId != -1 ? EnumUtil.FromValue<TimepointType>(timepointId) : null
-                    };
-
-                    entities.Add(entity);
-                    existingIds.Add(uniqueKey);
-
-                    if (entities.Count >= batchSize)
-                    {
-                        await _dbContext.BulkInsertAsync(entities);
-                        totalImported += entities.Count;
-                        entities.Clear();
-                    }
+                    await session.ExecuteAsync(batch);
+                    totalImported += batchCount;
+                    batch = new BatchStatement();
+                    batchCount = 0;
                 }
+            }
 
-                if (entities.Count > 0)
-                {
-                    await _dbContext.BulkInsertAsync(entities);
-                    totalImported += entities.Count;
-                    entities.Clear();
-                }
+            if (batchCount > 0)
+            {
+                await session.ExecuteAsync(batch);
+                totalImported += batchCount;
             }
 
             stopwatch.Stop();
 
             _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)})"
+                "Inserted {0} records from {1} in cassandra with {2} line(s) ignored. ({3})",
+                totalImported,
+                filePath,
+                totalIgnored,
+                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"\nError importing data from {filePath}");
-            return;
+            _logger.LogError(ex, "Error importing data from {FilePath}", filePath);
         }
+    }
+
+    private StopTime MapRowToStopTime(Row row)
+    {
+        int? pickupTypeValue = row.IsNull("pickup_type") ? null : row.GetValue<int?>("pickup_type");
+        int? timepointValue = row.IsNull("timepoint") ? null : row.GetValue<int?>("timepoint");
+
+        return new StopTime
+        {
+            Id = row.GetValue<string>("id"),
+            TripId = row.GetValue<string>("trip_id"),
+            ArrivalTime = row.GetValue<string>("arrival_time"),
+            DepartureTime = row.GetValue<string>("departure_time"),
+            StopId = row.GetValue<string>("stop_id"),
+            StopSequence = row.GetValue<int>("stop_sequence"),
+            StopHeadsign = row.IsNull("stop_headsign") ? null : row.GetValue<string>("stop_headsign"),
+            PickupType = pickupTypeValue.HasValue ? EnumUtil.FromValue<PickupType>(pickupTypeValue.Value) : null,
+            DropOffType = row.IsNull("drop_off_type") ? null : row.GetValue<int?>("drop_off_type"),
+            ShapeDistTraveled = row.IsNull("shape_dist_traveled") ? null : row.GetValue<double?>("shape_dist_traveled"),
+            Timepoint = timepointValue.HasValue ? EnumUtil.FromValue<TimepointType>(timepointValue.Value) : null
+        };
     }
 }

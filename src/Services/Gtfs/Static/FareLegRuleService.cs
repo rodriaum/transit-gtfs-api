@@ -1,7 +1,5 @@
-using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -11,122 +9,59 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class FareLegRuleService : IFareLegRuleService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<FareLegRuleService> _logger;
-    private readonly IRedisService _redis;
+    private readonly IPostgresService _postgresService;
 
-    public FareLegRuleService(GTFSContext dbContext, ILogger<FareLegRuleService> logger, IRedisService redis)
+    public FareLegRuleService(GtfsDbContext gtfsDbContext, ILogger<FareLegRuleService> logger,
+        IPostgresService postgresService)
     {
-        _dbContext = dbContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
-        _redis = redis;
+        _postgresService = postgresService;
     }
 
     public async Task<List<FareLegRule>> GetAllAsync()
     {
-        return await _dbContext.Set<FareLegRule>().ToListAsync();
+        return await _gtfsDbContext.Set<FareLegRule>().ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
     {
-        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "fare_leg_rules.txt");
 
-        if (!File.Exists(filePath))
+        HashSet<string> existingIds = new(
+            await _gtfsDbContext.Set<FareLegRule>().Select(f => f.FareLegRuleId.ToLower()).ToListAsync()
+        );
+
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
+        List<FareLegRule> entities = new List<FareLegRule>();
+        int totalIgnored = 0;
+
+        foreach (var rowData in csvData)
         {
-            _logger.LogWarning($"File not found: {filePath}");
-            return;
-        }
+            string fareLegRuleId = rowData.GetValueOrDefault("fare_leg_rule_id", "") ?? "";
+            string uniqueKey = fareLegRuleId.ToLower();
 
-        try
-        {
-            _logger.LogInformation($"Starting data import process from {filePath}");
-
-            int batchSize = Constant.BatchSizeImport;
-            int totalImported = 0;
-            int totalIgnored = 0;
-
-            HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Set<FareLegRule>().Select(f => f.FareLegRuleId.ToLower()).ToListAsync()
-            );
-
-            List<FareLegRule> entities = new List<FareLegRule>(batchSize);
-
-            using (StreamReader reader = new StreamReader(filePath))
+            if (existingIds.Contains(uniqueKey))
             {
-                string? headerLine = await reader.ReadLineAsync();
-
-                if (string.IsNullOrWhiteSpace(headerLine))
-                {
-                    _logger.LogWarning($"No data found in {filePath}");
-                    return;
-                }
-
-                string[] headers = headerLine.Split(',');
-                string? line;
-
-                while ((line = await reader.ReadLineAsync()) != null)
-                {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    string[] values = line.Split(',');
-                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
-
-                    for (int j = 0; j < headers.Length; j++)
-                    {
-                        if (j < values.Length)
-                        {
-                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
-                        }
-                    }
-
-                    string fareLegRuleId = rowData.GetValueOrDefault("fare_leg_rule_id", "") ?? "";
-                    string uniqueKey = fareLegRuleId.ToLower();
-                    if (existingIds.Contains(uniqueKey))
-                    {
-                        totalIgnored++;
-                        continue;
-                    }
-
-                    FareLegRule entity = new FareLegRule
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        FareLegRuleId = fareLegRuleId,
-                        FareProductId = rowData.GetValueOrDefault("fare_product_id", null),
-                        LegGroupId = rowData.GetValueOrDefault("leg_group_id", null),
-                        NetworkId = rowData.GetValueOrDefault("network_id", null)
-                    };
-
-                    entities.Add(entity);
-                    existingIds.Add(uniqueKey);
-
-                    if (entities.Count >= batchSize)
-                    {
-                        await _dbContext.BulkInsertAsync(entities);
-                        totalImported += entities.Count;
-                        entities.Clear();
-                    }
-                }
-
-                if (entities.Count > 0)
-                {
-                    await _dbContext.BulkInsertAsync(entities);
-                    totalImported += entities.Count;
-                    entities.Clear();
-                }
+                totalIgnored++;
+                continue;
             }
 
-            stopwatch.Stop();
+            FareLegRule entity = new FareLegRule
+            {
+                Id = Guid.NewGuid().ToString(),
+                FareLegRuleId = fareLegRuleId,
+                FareProductId = rowData.GetValueOrDefault("fare_product_id", null),
+                LegGroupId = rowData.GetValueOrDefault("leg_group_id", null),
+                NetworkId = rowData.GetValueOrDefault("network_id", null)
+            };
 
-            _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
-                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
-            );
+            entities.Add(entity);
+            existingIds.Add(uniqueKey);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"\nError importing data from {filePath}");
-            return;
-        }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

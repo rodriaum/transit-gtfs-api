@@ -1,9 +1,7 @@
-using EFCore.BulkExtensions;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using System.Diagnostics;
-using System.Globalization;
-using Tranzor.Databases;
+using Tranzor.Context;
 using Tranzor.Interfaces.Database;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -13,134 +11,71 @@ namespace Tranzor.Services.Gtfs.Static;
 
 public class ShapesService : IShapesService
 {
-    private readonly GTFSContext _dbContext;
+    private readonly GtfsDbContext _gtfsDbContext;
     private readonly ILogger<ShapesService> _logger;
-    private readonly IRedisService _redis;
+    private readonly IPostgresService _postgresService;
 
-    public ShapesService(GTFSContext dbContext, ILogger<ShapesService> logger, IRedisService redis)
+    public ShapesService(GtfsDbContext gtfsDbContext, ILogger<ShapesService> logger,
+        IPostgresService postgresService)
     {
-        _dbContext = dbContext;
+        _gtfsDbContext = gtfsDbContext;
         _logger = logger;
-        _redis = redis;
+        _postgresService = postgresService;
     }
 
     public async Task<List<Shape>> GetAllAsync()
     {
-        return await _dbContext.Shapes.ToListAsync();
+        return await _gtfsDbContext.Shapes.ToListAsync();
     }
 
     public async Task<List<Shape>?> GetByShapeIdAsync(string shapeId)
     {
-        return await _redis.GetOrSetAsync(
-            $"shapes-{shapeId}",
-            async () => await _dbContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync()
-        );
+        return await _gtfsDbContext.Shapes.Where(s => s.ShapeId == shapeId).ToListAsync();
     }
 
     public async Task ImportDataAsync(string directoryPath)
     {
-        Stopwatch stopwatch = Stopwatch.StartNew();
         string filePath = Path.Combine(directoryPath, "shapes.txt");
 
-        if (!File.Exists(filePath))
+        HashSet<string> existingIds = new(
+            await _gtfsDbContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
+        );
+
+        List<Dictionary<string, string?>> csvData = await CsvUtil.ReadCsvAsync(filePath, _logger);
+        List<Shape> entities = new List<Shape>();
+        int totalIgnored = 0;
+
+        foreach (var rowData in csvData)
         {
-            _logger.LogWarning($"File not found: {filePath}");
-            return;
-        }
+            string shapeId = rowData.GetValueOrDefault("shape_id", "") ?? "";
 
-        try
-        {
-            _logger.LogInformation($"Starting data import process from {filePath}");
-
-            int batchSize = Constant.BatchSizeImport;
-            int totalImported = 0;
-            int totalIgnored = 0;
-
-            HashSet<string> existingIds = new HashSet<string>(
-                await _dbContext.Shapes.Select(s => s.ShapeId.ToLower()).ToListAsync()
-            );
-
-            List<Shape> entities = new List<Shape>(batchSize);
-
-            using (StreamReader reader = new StreamReader(filePath))
+            if (existingIds.Contains(shapeId.ToLower()))
             {
-                string? headerLine = await reader.ReadLineAsync();
-
-                if (string.IsNullOrWhiteSpace(headerLine))
-                {
-                    _logger.LogWarning($"No data found in {filePath}");
-                    return;
-                }
-
-                string[] headers = headerLine.Split(',');
-                string? line;
-
-                while ((line = await reader.ReadLineAsync()) != null)
-                {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    string[] values = line.Split(',');
-                    Dictionary<string, string?> rowData = new Dictionary<string, string?>();
-
-                    for (int j = 0; j < headers.Length; j++)
-                    {
-                        if (j < values.Length)
-                        {
-                            rowData[headers[j]] = string.IsNullOrWhiteSpace(values[j]) ? null : values[j];
-                        }
-                    }
-
-                    string shapeId = rowData.GetValueOrDefault("shape_id", "") ?? "";
-                    if (existingIds.Contains(shapeId.ToLower()))
-                    {
-                        totalIgnored++;
-                        continue;
-                    }
-
-                    double shapeLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null), format: CultureInfo.InvariantCulture);
-                    double shapeLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null), format: CultureInfo.InvariantCulture);
-
-                    Shape entity = new Shape
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ShapeId = shapeId,
-                        ShapePtLat = shapeLat,
-                        ShapePtLon = shapeLon,
-                        ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
-                        ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null), format: CultureInfo.InvariantCulture),
-                        Geom = Constant.GeometryFactory.CreatePoint(new Coordinate(shapeLon, shapeLat))
-                    };
-
-                    entities.Add(entity);
-                    existingIds.Add(shapeId.ToLower());
-
-                    if (entities.Count >= batchSize)
-                    {
-                        await _dbContext.BulkInsertAsync(entities);
-                        totalImported += entities.Count;
-                        entities.Clear();
-                    }
-                }
-
-                if (entities.Count > 0)
-                {
-                    await _dbContext.BulkInsertAsync(entities);
-                    totalImported += entities.Count;
-                    entities.Clear();
-                }
+                totalIgnored++;
+                continue;
             }
 
-            stopwatch.Stop();
+            double shapeLat = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lat", null),
+                format: CultureInfo.InvariantCulture);
+            double shapeLon = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_pt_lon", null),
+                format: CultureInfo.InvariantCulture);
 
-            _logger.LogInformation(
-                $"Inserted {totalImported} records from {filePath} in database with {totalIgnored} line(s) ignored. ({{0}})",
-                TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds)
-            );
+            Shape entity = new Shape
+            {
+                Id = Guid.NewGuid().ToString(),
+                ShapeId = shapeId,
+                ShapePtLat = shapeLat,
+                ShapePtLon = shapeLon,
+                ShapePtSequence = NumberUtil.ParseIntSafe(rowData.GetValueOrDefault("shape_pt_sequence", null)),
+                ShapeDistTraveled = NumberUtil.ParseDoubleSafe(rowData.GetValueOrDefault("shape_dist_traveled", null),
+                    format: CultureInfo.InvariantCulture),
+                Geom = Constant.Wgs84GeometryFactory.CreatePoint(new Coordinate(shapeLon, shapeLat))
+            };
+
+            entities.Add(entity);
+            existingIds.Add(shapeId.ToLower());
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"\nError importing data from {filePath}");
-            return;
-        }
+
+        await _postgresService.BulkInsertEntitiesAsync(entities, filePath, totalIgnored);
     }
 }

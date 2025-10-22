@@ -9,16 +9,16 @@ public enum PickupType
 
     /// <summary>
     /// Does not allow boarding (or disembarking)
-    /// summary>
+    /// </summary>
     NoPickup = 1,
 
     /// <summary>
     /// On request only (on-demand pickup/discharge)
-    /// summary>
+    /// </summary>
     MustPhoneAgency = 2,
 
     /// <summary>
     /// Necessary coordination with the driver or company
-    /// summary>
+    /// </summary>
     MustCoordinateWithDriver = 3
 }

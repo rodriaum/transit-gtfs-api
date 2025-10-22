@@ -1,4 +1,5 @@
 using Tranzor.Context;
+using Tranzor.Enums;
 using Tranzor.Interfaces.Config;
 using Tranzor.Models.Config;
 using Tranzor.Utils;
@@ -21,7 +22,7 @@ public class ConfigService : IConfigService
             (bool isConfigFileIntegrity, string configFilePath) = VerifyConfigFileIntegrity("config.json");
             (bool isGtfsDataFileIntegrity, string gtfsDataFilePath) = VerifyConfigFileIntegrity("gtfs_data.json");
 
-            ConfigData config = new ConfigData(false);
+            ConfigData config = new ConfigData(DownloadDataType.None, false);
 
             if (isConfigFileIntegrity)
             {
@@ -32,6 +33,10 @@ public class ConfigService : IConfigService
                     config = loadedConfig;
                 }
             }
+            else
+            {
+                _logger.LogWarning("Could not find {0} file, import will be turned off even if it is enabled in the configuration file.", configFilePath);
+            }
 
             if (isGtfsDataFileIntegrity)
             {
@@ -41,6 +46,16 @@ public class ConfigService : IConfigService
                 {
                     GtfsDataContext.GtfsDataList = gtfsDataList;
                 }
+                else
+                {
+                    _logger.LogWarning("Could not import gtfs data because it returned null when converting.");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Could not find {0} file, because of this there will be no operators for the API to work, and it will be turned off.", configFilePath);
+                Environment.Exit(0);
+                Thread.Sleep(2500);
             }
 
             GtfsDataContext.Config = config;
@@ -55,18 +70,11 @@ public class ConfigService : IConfigService
 
     private (bool, string) VerifyConfigFileIntegrity(string file)
     {
-        string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string? path = Path.Combine(baseDirectory, "Data", file);
+        string? path = FileUtil.ResolvePath(Path.Combine(Constant.ConfigPath, file));
 
         if (File.Exists(path))
             return (true, path);
 
-        path = Path.Combine(baseDirectory, "..", "..", "..", "..", "Data", file);
-
-        if (File.Exists(path))
-            return (true, path);
-
-        _logger.LogWarning("Could not find {File} file, import will be turned off even if it is enabled in the configuration file.", file);
         return (false, file);
     }
 }

@@ -1,7 +1,6 @@
-using DotNetEnv;
-using Serilog;
 using System.Diagnostics;
 using Tranzor.Context;
+using Tranzor.Enums;
 using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
@@ -95,10 +94,37 @@ public class GtfsDataService : IGtfsDataService
 
     public async Task LoadDataFromFilesAsync()
     {
-        if (!GtfsDataContext.Config.DownloadData)
+        if (GtfsDataContext.Config.DownloadData == DownloadDataType.None)
         {
-            _logger.LogInformation("Import option is false, nothing will be imported.");
+            _logger.LogInformation("Import option is None, nothing will be imported.");
             return;
+        }
+        else if (GtfsDataContext.Config.DownloadData == DownloadDataType.FirstUse)
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string flagFile = Path.Combine(baseDirectory, "api_started.flag");
+
+            try
+            {
+                if (!File.Exists(flagFile))
+                {
+                    File.WriteAllText(flagFile, DateTime.Now.ToString("O"));
+                    _logger.LogInformation("First use detected. Flag file created at {FlagFile}", flagFile);
+                }
+                else
+                {
+                    _logger.LogInformation("Flag file already exists ({FlagFile}), skipping import.", flagFile);
+                    return;
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "No permission to write flag file in {BaseDirectory}", baseDirectory);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while writing flag file {FlagFile}", flagFile);
+            }
         }
 
         Stopwatch stopwatch = Stopwatch.StartNew();
@@ -113,7 +139,7 @@ public class GtfsDataService : IGtfsDataService
                 return;
             }
 
-            _logger.LogInformation($"Starting import of data from {gtfsDirectories.Count} GTFS sources");
+            _logger.LogInformation("Starting import of data from {0} GTFS sources", gtfsDirectories.Count);
 
             List<Agency> existingAgencies = await _agencyService.GetAllAsync();
 
@@ -126,7 +152,7 @@ public class GtfsDataService : IGtfsDataService
 
                 if (gtfsData == null)
                 {
-                    _logger.LogWarning($"No GTFS data configuration found for directory {gtfsDirectoryPath}. Skipping import.");
+                    _logger.LogWarning("No GTFS data configuration found for directory {0}. Skipping import.", gtfsDirectoryPath);
                     continue;
                 }
 
@@ -134,20 +160,20 @@ public class GtfsDataService : IGtfsDataService
 
                 if (string.IsNullOrWhiteSpace(agencyId))
                 {
-                    _logger.LogInformation($"Agency key at index {i} cannot be null.");
+                    _logger.LogInformation("Agency key at index {0} cannot be null.", i);
                     continue;
                 }
 
                 if (existingAgencies.Find(it => !string.IsNullOrWhiteSpace(it.AgencyId) && string.Equals(it.AgencyId, agencyId, StringComparison.OrdinalIgnoreCase)) != null)
                 {
-                    _logger.LogInformation($"Ignoring {gtfsData.AgencyId} becauses already exists.");
+                    _logger.LogInformation("Ignoring {0} becauses already exists.", gtfsData.AgencyId);
                     continue;
                 }
 
-                _logger.LogInformation($"Importing GTFS data from {gtfsDirectoryPath} (Agency: {agencyId})");
+                _logger.LogInformation("Importing GTFS data from agency {0}", agencyId);
 
-                /**
-                * Because agencies are very creative with their agency_id, such as SUPER Creative values ​​like "1", "2"
+                /*
+                * Because agencies are very creative with their agency_id, such as SUPER Creative values like "1", "2"
                 * Where several use this, and end up duplicating or replacing, the id will be set manually based on the GtfsData
                 * from the gtfs data list which contains the download url and other information.
                 */
@@ -213,26 +239,29 @@ public class GtfsDataService : IGtfsDataService
                 await ImportFileIfExists(gtfsDirectoryPath, "networks.txt", gtfsData.IgnoredFiles,
                     async () => await _networkService.ImportDataAsync(gtfsDirectoryPath));
 
-                _logger.LogInformation($"Data import from {gtfsDirectoryPath} completed successfully");
+                _logger.LogInformation("Data import from {0} completed", gtfsDirectoryPath);
             }
 
-            _logger.LogInformation("Import of all GTFS data completed successfully");
+            _logger.LogInformation("Import of all GTFS data completed");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading data from GTFS files");
+            throw new Exception("Error loading data from GTFS files", ex);
         }
         finally
         {
             stopwatch.Stop();
 
             string duration = TimeFormatUtil.FormatDurationFromMilliseconds((long)stopwatch.Elapsed.TotalMilliseconds);
-            _logger.LogInformation($"Total GTFS import duration: {duration}");
+            _logger.LogInformation("Total GTFS import duration: {0}", duration);
         }
     }
 
     private async Task ImportFileIfExists(string directoryPath, string fileName, List<string> ignoredFiles, Func<Task> importAction)
     {
+        if (!fileName.EndsWith(".txt"))
+            fileName += ".txt";
+
         if (ignoredFiles.Exists(it => it.StartsWith(fileName)))
         {
             _logger.LogDebug($"Skipping import of ignored file: {fileName}");
@@ -243,12 +272,12 @@ public class GtfsDataService : IGtfsDataService
 
         if (File.Exists(filePath))
         {
-            _logger.LogDebug($"Importing {fileName}");
+            _logger.LogDebug("Importing {0}", fileName);
             await importAction();
         }
         else
         {
-            _logger.LogWarning($"File {fileName} not found in {directoryPath}");
+            _logger.LogWarning("File {0} not found in {1}", fileName, directoryPath);
         }
     }
 }

@@ -1,18 +1,19 @@
 using Microsoft.AspNetCore.Mvc;
+using TransitRealtime;
 using Tranzor.DTOs;
 using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Realtime;
 using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
-using Tranzor.Models.Router;
-using Tranzor.Services.Gtfs;
-using Tranzor.Services.Gtfs.Static;
+using Tranzor.Models.OTP;
 using Tranzor.Utils;
+using Route = Tranzor.Models.Route;
+using Stop = Tranzor.Models.Stop;
 
 namespace Tranzor.Controllers.Gtfs;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class TransitController : ControllerBase
 {
     private readonly IRoutesService _routesService;
@@ -20,9 +21,7 @@ public class TransitController : ControllerBase
     private readonly IStopTimesService _stopTimesService;
     private readonly IStopsService _stopsService;
     private readonly IGtfsRealtimeCacheService _gtfsRealtimeService;
-    private readonly IGtfsRouterService _routerService;
-    private readonly ICalendarDatesService _calendarDatesService;
-    private readonly ICalendarService _calendarService;
+    private readonly IOpenTripPlannerService _routerService;
     private readonly ILogger<TransitController> _logger;
 
     public TransitController(
@@ -31,9 +30,7 @@ public class TransitController : ControllerBase
         IStopTimesService stopTimesService,
         IStopsService stopsService,
         IGtfsRealtimeCacheService gtfsRealtimeService,
-        IGtfsRouterService routerService,
-        ICalendarDatesService calendarDatesService,
-        ICalendarService calendarService,
+        IOpenTripPlannerService routerService,
         ILogger<TransitController> logger)
     {
         _routesService = routesService;
@@ -42,17 +39,16 @@ public class TransitController : ControllerBase
         _stopsService = stopsService;
         _gtfsRealtimeService = gtfsRealtimeService;
         _routerService = routerService;
-        _calendarDatesService = calendarDatesService;
-        _calendarService = calendarService;
         _logger = logger;
     }
 
     [HttpGet("route-with-trips/{routeId}")]
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "routeId" })] // Cache 5 minutos
     public async Task<ActionResult<RouteWithTripsDto>> GetRouteWithTrips(string routeId)
     {
         try
         {
-            Models.Route? route = await _routesService.GetByIdAsync(routeId);
+            Route? route = await _routesService.GetByIdAsync(routeId);
 
             if (route == null)
                 return NotFound(new { message = $"Route with ID {routeId} not found" });
@@ -75,6 +71,7 @@ public class TransitController : ControllerBase
         }
     }
 
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "tripId" })]
     [HttpGet("trip-with-stops/{tripId}")]
     public async Task<ActionResult<TripWithStopTimesDto>> GetTripWithStops(string tripId)
     {
@@ -121,7 +118,7 @@ public class TransitController : ControllerBase
     public async Task<ActionResult<List<UpcomingDeparturesDto>>> GetUpcomingDepartures(
         string stopId,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 100,
+        [FromQuery] int pageSize = 3,
         [FromQuery] DateTime? referenceTime = null)
     {
         try
@@ -131,31 +128,22 @@ public class TransitController : ControllerBase
             if (stop == null)
                 return NotFound(new { message = $"Stop with ID {stopId} not found" });
 
-            DateTime reference = referenceTime ?? DateTime.Now;
-            string referenceTimeString = reference.ToString("HH:mm:ss");
+            List<StopTime>? upcomingDepartures =
+                await _stopTimesService.GetUpcomingDeparturesByStopIdAsync(stopId, page: page, pageSize: pageSize, referenceTime: referenceTime);
 
-            List<StopTime>? stopTimes = await _stopTimesService.GetByStopIdAsync(stopId, page: page, pageSize: pageSize);
-
-            if (stopTimes == null || stopTimes.Count == 0)
+            if (upcomingDepartures == null || upcomingDepartures.Count == 0)
                 return NotFound(new { message = $"No stop times found for stop {stopId}" });
 
-            List<StopTime> upcomingDepartures = stopTimes
-                .Where(st => string.Compare(st.DepartureTime, referenceTimeString) > 0)
-                .OrderBy(st => st.DepartureTime)
-                .Take(pageSize)
-                .ToList();
+            List<TripUpdate>? tripUpdates =
+                await _gtfsRealtimeService.GetTripUpdatesAsync(stopId: stopId);
+            List<VehiclePosition>? vehiclePositions =
+                await _gtfsRealtimeService.GetVehiclePositionsAsync(stopId: stopId);
 
-            if (upcomingDepartures == null || !upcomingDepartures.Any())
-                return NotFound("No upcoming departures found");
-
-            List<TransitRealtime.TripUpdate>? tripUpdates = await _gtfsRealtimeService.GetTripUpdatesAsync();
-            List<TransitRealtime.VehiclePosition>? vehiclePositions = await _gtfsRealtimeService.GetVehiclePositionsAsync();
-
-            Dictionary<string, TransitRealtime.TripUpdate> tripUpdateDict = tripUpdates?
+            Dictionary<string, TripUpdate> tripUpdateDict = tripUpdates?
                 .Where(tu => tu?.Trip?.TripId != null)
                 .ToDictionary(tu => tu.Trip.TripId!) ?? new();
 
-            Dictionary<string, TransitRealtime.VehiclePosition> vehicleDict = vehiclePositions?
+            Dictionary<string, VehiclePosition> vehicleDict = vehiclePositions?
                 .Where(v => v?.Trip?.TripId != null && v.Position != null)
                 .GroupBy(v => v.Trip.TripId!)
                 .ToDictionary(g => g.Key, g => g.First()) ?? new();
@@ -186,10 +174,12 @@ public class TransitController : ControllerBase
                     if (stopUpdate != null)
                     {
                         if (stopUpdate.Arrival?.Time != null)
-                            departure.RealtimeArrival = DateTimeOffset.FromUnixTimeSeconds(stopUpdate.Arrival.Time).LocalDateTime;
+                            departure.RealtimeArrival = DateTimeOffset.FromUnixTimeSeconds(stopUpdate.Arrival.Time)
+                                .LocalDateTime;
 
                         if (stopUpdate.Departure?.Time != null)
-                            departure.RealtimeDeparture = DateTimeOffset.FromUnixTimeSeconds(stopUpdate.Departure.Time).LocalDateTime;
+                            departure.RealtimeDeparture = DateTimeOffset.FromUnixTimeSeconds(stopUpdate.Departure.Time)
+                                .LocalDateTime;
 
                         departure.DelaySeconds = stopUpdate.Arrival?.Delay ?? stopUpdate.Departure?.Delay ?? 0;
                         departure.IsRealtime = true;
@@ -203,7 +193,7 @@ public class TransitController : ControllerBase
                 {
                     if (stop.StopLat != 0 && stop.StopLon != 0)
                     {
-                        var distance = MathUtil.Haversine(
+                        double distance = MathUtil.Haversine(
                             stop.StopLat,
                             stop.StopLon,
                             vehicle.Position.Latitude,
@@ -233,7 +223,7 @@ public class TransitController : ControllerBase
                 }
 
                 Trip? trip = tripsDict.TryGetValue(departure.TripId, out var t) ? t : null;
-                Models.Route? route = trip != null ? await _routesService.GetByIdAsync(trip.RouteId) : null;
+                Route? route = trip != null ? await _routesService.GetByIdAsync(trip.RouteId) : null;
 
                 result.Add(new UpcomingDeparturesDto
                 {
@@ -255,19 +245,20 @@ public class TransitController : ControllerBase
 
     [HttpGet("plan-router")]
     public async Task<ActionResult<List<RoutePlan>>> PlanRouter(
-    [FromQuery] double fromLat,
-    [FromQuery] double fromLon,
-    [FromQuery] double toLat,
-    [FromQuery] double toLon,
-    [FromQuery] DateTime? departureTime,
-    [FromQuery] int maxRoutes = 1)
+        [FromQuery] double fromLat,
+        [FromQuery] double fromLon,
+        [FromQuery] double toLat,
+        [FromQuery] double toLon,
+        [FromQuery] DateTime? departureTime,
+        [FromQuery] int maxRoutes = 1)
     {
         try
         {
             if (departureTime == null)
                 departureTime = DateTime.Now;
 
-            List<RoutePlan> routePlan = await _routerService.PlanRouteAsync(fromLat, fromLon, toLat, toLon, departureTime.Value, maxRoutes);
+            List<RoutePlan> routePlan =
+                await _routerService.PlanRouteAsync(fromLat, fromLon, toLat, toLon, departureTime.Value, maxRoutes);
 
             if (routePlan == null)
                 return NotFound();
@@ -276,8 +267,12 @@ public class TransitController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error planning a route.");
-            return StatusCode(500, new { message = "Error processing request", error = ex.Message });
+            _logger.LogError(ex, $"Error processing a route, is OpenTripPlanner running?");
+            return StatusCode(500,
+                new
+                {
+                    message = "Error processing order, check if you have OpenTripPlanner running.", error = ex.Message
+                });
         }
     }
 }

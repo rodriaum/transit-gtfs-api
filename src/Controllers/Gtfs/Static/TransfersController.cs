@@ -5,7 +5,7 @@ using Tranzor.Models;
 namespace Tranzor.Controllers.Gtfs.Static;
 
 [ApiController]
-[Route("api/v1/transit/gtfs")]
+[Route("api/v1/tranzor")]
 public class TransfersController : ControllerBase
 {
     private readonly ITransfersService _transfersService;

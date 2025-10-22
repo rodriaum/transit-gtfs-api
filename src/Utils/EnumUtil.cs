@@ -16,7 +16,7 @@ public static class EnumUtil
         if (name == null)
             return null;
 
-        if (Enum.TryParse<T>(name, ignoreCase, out T result))
+        if (Enum.TryParse(name, ignoreCase, out T result))
             return result;
 
         return null;

@@ -38,6 +38,9 @@ public class NumberUtil
         if (string.IsNullOrWhiteSpace(str))
             return defaultValue ?? 0;
 
+        // Fix to some values in csv import that's contains the '"'
+        str.Replace("\"", "");
+
         return double.Parse(str, format);
     }
 

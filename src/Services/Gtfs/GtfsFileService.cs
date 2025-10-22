@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Compression;
 using Tranzor.Context;
 using Tranzor.Interfaces.Gtfs;
@@ -30,7 +31,7 @@ public class GtfsFileService : IGtfsFileService
 
         if (GtfsDataContext.GtfsDataList.Count == 0)
         {
-            _logger.LogWarning("No GTFS URLs configured. Please configure at least one URL in Constant.GtfsFileUrls.");
+            _logger.LogWarning("No GTFS URLs configured. Please configure at least one URL in file.");
             return gtfsDirectories;
         }
 
@@ -38,9 +39,24 @@ public class GtfsFileService : IGtfsFileService
         {
             GtfsData gtfsData = GtfsDataContext.GtfsDataList[i];
 
-            string gtfsUrl = gtfsData.Url;
-            string providerFolderName = gtfsData.AgencyId;
-            string providerDirectory = Path.Combine(Constant.ExtractPath, providerFolderName);
+            string gtfsUrl = gtfsData.GtfsUrl;
+            string agencyId = gtfsData.AgencyId;
+            string providerDirectory = Path.Combine(Constant.ExtractPath, agencyId);
+
+            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy" };
+
+            if (!string.IsNullOrEmpty(gtfsData.GtfsExpireAt) &&
+                DateTime.TryParseExact(gtfsData.GtfsExpireAt, formats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out DateTime date) &&
+                DateTime.Now > date)
+            {
+                _logger.LogWarning(
+                    "It is not possible to export the GTFS data from operator {0} because it expired at {1}.",
+                    agencyId,
+                    date.ToShortDateString()
+                );
+                continue;
+            }
 
             if (!Directory.Exists(providerDirectory))
             {
@@ -53,7 +69,8 @@ public class GtfsFileService : IGtfsFileService
 
             if (needsDownload)
             {
-                _logger.LogInformation($"Downloading and extracting GTFS data from {gtfsUrl} to {providerDirectory}");
+                //_logger.LogInformation("Downloading and extracting GTFS data from {0} to {1}", gtfsUrl, providerDirectory);
+                _logger.LogInformation("Downloading GTFS data from agency {0}", agencyId);
                 string tempZipPath = Path.Combine(Constant.TempDownloadFolder, $"gtfs_{i + 1}.zip");
 
                 if (!Directory.Exists(Constant.TempDownloadFolder))
@@ -75,12 +92,12 @@ public class GtfsFileService : IGtfsFileService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, $"Could not delete temporary file {tempZipPath}");
+                    _logger.LogWarning(ex, "Could not delete temporary file {TempZipPath}", tempZipPath);
                 }
             }
             else
             {
-                _logger.LogInformation($"GTFS files for {providerFolderName} already exist at {providerDirectory}");
+                //_logger.LogInformation("GTFS files for {0} already exist at {1}", agencyId, providerDirectory);
             }
 
             gtfsDirectories.Add(providerDirectory);
@@ -101,20 +118,20 @@ public class GtfsFileService : IGtfsFileService
         stopwatch.Stop();
 
         string duration = TimeFormatUtil.FormatDurationFromMilliseconds(stopwatch.ElapsedMilliseconds);
-        _logger.LogInformation($"GTFS file preparation completed in {duration}");
+        _logger.LogInformation("GTFS file preparation completed in {0}", duration);
 
         return gtfsDirectories;
     }
 
     private bool AreRequiredFilesPresent(string directoryPath, List<string> ignoredFiles) =>
-         Constant.RequiredFiles
+        Constant.RequiredFiles
             .Where(file => !ignoredFiles.Exists(it => it.StartsWith(file)))
             .All(file => File.Exists(Path.Combine(directoryPath, file)));
 
 
     private async Task<bool> DownloadGtfsFileAsync(string url, string filePath)
     {
-        _logger.LogInformation($"Downloading GTFS data from {url}");
+        //_logger.LogInformation("Downloading GTFS data from {0}", url);
 
         try
         {
@@ -128,19 +145,19 @@ public class GtfsFileService : IGtfsFileService
                 await response.Content.CopyToAsync(fileStream);
             }
 
-            _logger.LogInformation($"Download completed successfully for {url}");
+            _logger.LogInformation("Download completed successfully for {0}", url);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error downloading GTFS data from {url}");
+            _logger.LogWarning("Error downloading GTFS data from {0} because: {1}", url, ex.Message);
             return false;
         }
     }
 
     private void ExtractGtfsFile(string zipFilePath, string extractPath, List<string> ignoredFiles)
     {
-        _logger.LogInformation($"Extracting GTFS data from {zipFilePath} to {extractPath}");
+        _logger.LogInformation("Extracting GTFS data from {0} to {1}", zipFilePath, extractPath);
 
         if (Directory.Exists(extractPath))
         {
@@ -160,7 +177,7 @@ public class GtfsFileService : IGtfsFileService
                 {
                     if (ignoredFiles.Contains(entry.Name))
                     {
-                        _logger.LogDebug($"Skipping ignored file: {entry.Name}");
+                        _logger.LogDebug("Skipping ignored file: {0}", entry.Name);
                         continue;
                     }
 
@@ -174,20 +191,20 @@ public class GtfsFileService : IGtfsFileService
                     try
                     {
                         entry.ExtractToFile(destinationPath, overwrite: true);
-                        _logger.LogDebug($"Extracted file: {entry.Name}");
+                        _logger.LogDebug("Extracted file: {0}", entry.Name);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, $"Failed to extract file: {entry.Name}. Skipping.");
+                        _logger.LogWarning(ex, "Failed to extract file: {0}. Skipping.", entry.Name);
                     }
                 }
             }
 
-            _logger.LogInformation("Extraction completed (with possible skipped files).");
+            _logger.LogInformation("Extraction completed" + (ignoredFiles.Any() ? ". (with files ignored)" : "."));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error extracting GTFS data from {zipFilePath}");
+            _logger.LogError(ex, "Error extracting GTFS data from {0}", zipFilePath);
         }
     }
 }

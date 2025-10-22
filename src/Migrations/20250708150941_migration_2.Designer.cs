@@ -4,13 +4,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Tranzor.Databases;
+using Tranzor.Context;
 
 #nullable disable
 
 namespace Tranzor.Migrations
 {
-    [DbContext(typeof(GTFSContext))]
+    [DbContext(typeof(GtfsDbContext))]
     [Migration("20250708150941_migration_2")]
     partial class migration_2
     {
