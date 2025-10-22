@@ -26,10 +26,17 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
+COPY Config /app/Config
+
 # Criar usuário não-root para segurança
 RUN addgroup -g 1000 tranzor && \
     adduser -D -u 1000 -G tranzor tranzor && \
     chown -R tranzor:tranzor /app
+
+RUN mkdir -p /app/Data && \
+    chown -R tranzor:tranzor /app/Data
+
+RUN chmod -R 755 /app/Data
 
 USER tranzor
 
