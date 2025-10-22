@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json.Serialization;
 using AspNetCoreRateLimit;
 using DotNetEnv;
@@ -38,18 +39,23 @@ public class Startup
 {
     public Startup(IConfiguration configuration)
     {
-        string? path = FileUtil.ResolvePath(".env");
+        bool isRunningInDocker = File.Exists("/.dockerenv");
 
-        if (!string.IsNullOrEmpty(path) && File.Exists(path))
+        if (!isRunningInDocker)
         {
-            Env.Load(path);
-            Log.Information("Environment file found and loaded successfully.");
-        }
-        else
-        {
-            Log.Error("ERROR: environment file not found in any location...");
-            Log.Information("Please create a environment file in the project root");
-            Environment.Exit(1);
+            string? path = FileUtil.ResolvePath(".env");
+
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            {
+                Env.Load(path);
+                Log.Information("Environment file found and loaded successfully.");
+            }
+            else
+            {
+                Log.Error("ERROR: environment file not found in any location...");
+                Log.Information("Please create a environment file in the project root");
+                Environment.Exit(1);
+            }
         }
 
         Configuration = configuration;
@@ -288,7 +294,7 @@ public class Startup
     {
         return HttpPolicyExtensions
             .HandleTransientHttpError()
-            .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+            .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
             .WaitAndRetryAsync(
                 retryCount: 3,
                 sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
