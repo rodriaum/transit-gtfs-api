@@ -16,8 +16,6 @@ public class PostgresService : IPostgresService
     {
         _gtfsDbContext = gtfsDbContext;
         _logger = logger;
-        
-        LogPostgresConfiguration();
     }
 
     private void LogPostgresConfiguration()
@@ -52,6 +50,8 @@ public class PostgresService : IPostgresService
     {
         try
         {
+            LogPostgresConfiguration();
+            
             _logger.LogInformation("[PostgreSQL] Checking database connection...");
             
             bool canConnect = await _gtfsDbContext.Database.CanConnectAsync();

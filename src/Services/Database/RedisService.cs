@@ -18,10 +18,7 @@ namespace Tranzor.Services.Database
         {
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _defaultDuration = duration ?? Constant.CacheDuration;
-
-            LogRedisConfiguration();
-        }
+            _defaultDuration = duration ?? Constant.CacheDuration; }
 
         private void LogRedisConfiguration()
         {
@@ -54,6 +51,8 @@ namespace Tranzor.Services.Database
         {
             string time = DateTime.UtcNow.ToString("o");
             await SetAsync("api:start-time", time);
+            
+            LogRedisConfiguration();
         }
 
         public async Task<bool> IsRedisAvailable()

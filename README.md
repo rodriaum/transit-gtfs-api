@@ -25,7 +25,7 @@ Antes de iniciar o projeto pela primeira vez, siga os passos abaixo:
    dotnet ef database update
    ```
 
-4. Após rodar o comando acima, é necessário executar o arquivo [SQL/cities.sq](https://github.com/rodriaum/tranzor-api/tree/dev/SQL) diretamente no banco de dados. 
+4. Após rodar o comando acima, é necessário executar o arquivo [SQL/cities.sql](https://github.com/rodriaum/tranzor-api/tree/dev/SQL) diretamente no banco de dados. 
 Este arquivo contém dados geográficos grandes (colunas `geom`) das zonas das cidades, por isso, não deve ser aberto e copiado manualmente.
 
 ## Arquitetura Técnica
