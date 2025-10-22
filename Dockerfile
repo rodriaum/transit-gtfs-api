@@ -1,32 +1,36 @@
-# Acesse https://aka.ms/customizecontainer para saber como personalizar seu contêiner de depuração e como o Visual Studio usa este Dockerfile para criar suas imagens para uma depuração mais rápida.
-
-# Dependendo do sistema operacional dos computadores host que compilarão ou executarão os contêineres, a imagem especificada na instrução FROM pode precisar ser alterada.
-# Para obter mais informações, consulte https://aka.ms/containercompat.
-
 # Esta fase é usada durante a execução no VS no modo rápido (Padrão para a configuração de Depuração)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-nanoserver-1809 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+RUN apk add --no-cache icu-libs
 
 # Esta fase é usada para compilar o projeto de serviço
-FROM mcr.microsoft.com/dotnet/sdk:8.0-nanoserver-1809 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["MetroPortoAPI.csproj", "."]
-RUN dotnet restore "./MetroPortoAPI.csproj"
+COPY ["src/Tranzor.csproj", "src/"]
+RUN dotnet restore "src/Tranzor.csproj"
 COPY . .
-WORKDIR "/src/."
-RUN dotnet build "./MetroPortoAPI.csproj" -c %BUILD_CONFIGURATION% -o /app/build
+WORKDIR "/src/src"
+RUN dotnet build "Tranzor.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Esta fase é usada para publicar o projeto de serviço a ser copiado para a fase final
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./MetroPortoAPI.csproj" -c %BUILD_CONFIGURATION% -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Tranzor.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# Esta fase é usada na produção ou quando executada no VS no modo normal (padrão quando não está usando a configuração de Depuração)
+# Esta fase é usada na produção ou quando executada no VS no modo normal
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "MetroPortoAPI.dll"]
+
+# Criar usuário não-root para segurança
+RUN addgroup -g 1000 tranzor && \
+    adduser -D -u 1000 -G tranzor tranzor && \
+    chown -R tranzor:tranzor /app
+
+USER tranzor
+
+ENTRYPOINT ["dotnet", "Tranzor.dll"]

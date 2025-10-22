@@ -75,7 +75,7 @@ public class GtfsDbContext : DbContext
         modelBuilder.Entity<City>().HasKey(e => e.Id);
         modelBuilder.Entity<StopCity>().HasKey(e => e.Id);
 
-        // Indexes
+        // Simple indexes
         modelBuilder.Entity<Agency>().HasIndex(e => e.AgencyId);
         modelBuilder.Entity<Calendar>().HasIndex(e => e.ServiceId);
         modelBuilder.Entity<CalendarDate>().HasIndex(e => e.ServiceId);
@@ -97,6 +97,19 @@ public class GtfsDbContext : DbContext
         modelBuilder.Entity<FareLegRule>().HasIndex(e => e.FareLegRuleId);
         modelBuilder.Entity<FareProduct>().HasIndex(e => e.FareProductId);
         modelBuilder.Entity<Network>().HasIndex(e => e.NetworkId);
+        
+        // Composite indexes to optimize common queries
+        modelBuilder.Entity<Trip>()
+            .HasIndex(e => new { e.RouteId, e.ServiceId })
+            .HasDatabaseName("idx_trips_route_service");
+        
+        modelBuilder.Entity<CalendarDate>()
+            .HasIndex(e => new { e.ServiceId, e.Date })
+            .HasDatabaseName("idx_calendar_dates_service_date");
+        
+        modelBuilder.Entity<StopCity>()
+            .HasIndex(e => new { e.CityId, e.StopId })
+            .HasDatabaseName("idx_stop_cities_city_stop");
 
         modelBuilder.Entity<Stop>()
             .Property(s => s.Location)

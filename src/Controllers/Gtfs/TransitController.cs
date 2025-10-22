@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TransitRealtime;
 using Tranzor.DTOs;
 using Tranzor.Interfaces.Gtfs;
 using Tranzor.Interfaces.Gtfs.Realtime;
@@ -6,6 +7,8 @@ using Tranzor.Interfaces.Gtfs.Static;
 using Tranzor.Models;
 using Tranzor.Models.OTP;
 using Tranzor.Utils;
+using Route = Tranzor.Models.Route;
+using Stop = Tranzor.Models.Stop;
 
 namespace Tranzor.Controllers.Gtfs;
 
@@ -40,11 +43,12 @@ public class TransitController : ControllerBase
     }
 
     [HttpGet("route-with-trips/{routeId}")]
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "routeId" })] // Cache 5 minutos
     public async Task<ActionResult<RouteWithTripsDto>> GetRouteWithTrips(string routeId)
     {
         try
         {
-            Models.Route? route = await _routesService.GetByIdAsync(routeId);
+            Route? route = await _routesService.GetByIdAsync(routeId);
 
             if (route == null)
                 return NotFound(new { message = $"Route with ID {routeId} not found" });
@@ -67,6 +71,7 @@ public class TransitController : ControllerBase
         }
     }
 
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "tripId" })]
     [HttpGet("trip-with-stops/{tripId}")]
     public async Task<ActionResult<TripWithStopTimesDto>> GetTripWithStops(string tripId)
     {
@@ -129,16 +134,16 @@ public class TransitController : ControllerBase
             if (upcomingDepartures == null || upcomingDepartures.Count == 0)
                 return NotFound(new { message = $"No stop times found for stop {stopId}" });
 
-            List<TransitRealtime.TripUpdate>? tripUpdates =
+            List<TripUpdate>? tripUpdates =
                 await _gtfsRealtimeService.GetTripUpdatesAsync(stopId: stopId);
-            List<TransitRealtime.VehiclePosition>? vehiclePositions =
+            List<VehiclePosition>? vehiclePositions =
                 await _gtfsRealtimeService.GetVehiclePositionsAsync(stopId: stopId);
 
-            Dictionary<string, TransitRealtime.TripUpdate> tripUpdateDict = tripUpdates?
+            Dictionary<string, TripUpdate> tripUpdateDict = tripUpdates?
                 .Where(tu => tu?.Trip?.TripId != null)
                 .ToDictionary(tu => tu.Trip.TripId!) ?? new();
 
-            Dictionary<string, TransitRealtime.VehiclePosition> vehicleDict = vehiclePositions?
+            Dictionary<string, VehiclePosition> vehicleDict = vehiclePositions?
                 .Where(v => v?.Trip?.TripId != null && v.Position != null)
                 .GroupBy(v => v.Trip.TripId!)
                 .ToDictionary(g => g.Key, g => g.First()) ?? new();
@@ -218,7 +223,7 @@ public class TransitController : ControllerBase
                 }
 
                 Trip? trip = tripsDict.TryGetValue(departure.TripId, out var t) ? t : null;
-                Models.Route? route = trip != null ? await _routesService.GetByIdAsync(trip.RouteId) : null;
+                Route? route = trip != null ? await _routesService.GetByIdAsync(trip.RouteId) : null;
 
                 result.Add(new UpcomingDeparturesDto
                 {

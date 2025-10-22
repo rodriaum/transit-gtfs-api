@@ -64,6 +64,16 @@ public class StopsService : IStopsService
         return await _gtfsDbContext.Stops.FirstOrDefaultAsync(s => s.StopId == stopId);
     }
 
+    public async Task<List<Stop>> GetStopsBatchAsync(List<string> stopIds)
+    {
+        if (stopIds == null || stopIds.Count == 0)
+            return new List<Stop>();
+
+        return await _gtfsDbContext.Stops
+            .Where(s => stopIds.Contains(s.StopId))
+            .ToListAsync();
+    }
+
     public async Task<List<Stop>> GetNearestStopAsync(double lat, double lon, string? cityId = null, int limit = 1)
     {
         Point point = new Point(lon, lat) { SRID = Constant.Wgs84GeometryFactory.SRID };

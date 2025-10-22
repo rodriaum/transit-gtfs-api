@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
+using Polly.Extensions.Http;
 using Serilog;
 using Tranzor.Context;
 using Tranzor.Filters;
@@ -275,7 +277,43 @@ public class Startup
         services.AddScoped<INetworkService, NetworkService>();
         services.AddScoped<IOpenTripPlannerService, OpenTripPlannerService>();
         services.AddScoped<ICityService, CityService>();
-        services.AddHttpClient<IOtpHttpClient, OtpHttpClient>();
+        
+        services.AddHttpClient<IOtpHttpClient, OtpHttpClient>()
+            .AddPolicyHandler(GetRetryPolicy())
+            .AddPolicyHandler(GetCircuitBreakerPolicy())
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+    }
+
+    private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+    {
+        return HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+            .WaitAndRetryAsync(
+                retryCount: 3,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (outcome, timespan, retryCount, context) =>
+                {
+                    Log.Warning("Retry {RetryCount} after {Delay}s due to: {Result}", 
+                        retryCount, timespan.TotalSeconds, outcome.Result?.StatusCode);
+                });
+    }
+
+    private static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+    {
+        return HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .CircuitBreakerAsync(
+                handledEventsAllowedBeforeBreaking: 5,
+                durationOfBreak: TimeSpan.FromSeconds(30),
+                onBreak: (outcome, duration) =>
+                {
+                    Log.Error("[Circuit Breaker] OPEN for {Duration}s due to: {Result}", 
+                        duration.TotalSeconds, outcome.Result?.StatusCode);
+                },
+                onReset: () => Log.Information("[Circuit Breaker] CLOSED - Connection reestablished"),
+                onHalfOpen: () => Log.Warning("[Circuit Breaker] HALF-OPEN - Testing connection")
+            );
     }
 
     public void ConfigureSecurityHeaders(IApplicationBuilder app)
@@ -331,12 +369,6 @@ public class Startup
 
         app.UseResponseCaching();
         app.UseResponseCompression();
-
-        using (IServiceScope scope = app.ApplicationServices.CreateScope())
-        {
-            GtfsDbContext db = scope.ServiceProvider.GetRequiredService<GtfsDbContext>();
-            //db.Database.Migrate();
-        }
 
         app.UseEndpoints(endpoints =>
         {

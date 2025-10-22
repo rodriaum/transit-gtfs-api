@@ -114,12 +114,6 @@ namespace Tranzor.Services.Database
             if (string.IsNullOrWhiteSpace(key))
                 throw new ArgumentNullException(nameof(key));
 
-            if (!await IsRedisAvailable())
-            {
-                _logger.LogWarning("[Redis] Unavailable. Skipping cache for key: {Key}", key);
-                return null;
-            }
-
             try
             {
                 key = NormalizeKey(key);
@@ -131,7 +125,6 @@ namespace Tranzor.Services.Database
                 }
 
                 var result = await JsonUtil.StringToObjectAsync<T>(json);
-                _logger.LogDebug("[Redis] Cache hit for key: {Key}", key);
                 return result;
             }
             catch (Exception ex)
@@ -148,12 +141,6 @@ namespace Tranzor.Services.Database
 
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-
-            if (!await IsRedisAvailable())
-            {
-                _logger.LogWarning("[Redis] Unavailable. Skipping cache for key: {Key}", key);
-                return false;
-            }
 
             try
             {
@@ -189,12 +176,6 @@ namespace Tranzor.Services.Database
             if (string.IsNullOrWhiteSpace(key))
                 throw new ArgumentNullException(nameof(key));
 
-            if (!await IsRedisAvailable())
-            {
-                _logger.LogWarning("[Redis] Unavailable. Skipping remove for key: {Key}", key);
-                return;
-            }
-
             try
             {
                 key = NormalizeKey(key);
@@ -226,12 +207,6 @@ namespace Tranzor.Services.Database
         {
             if (string.IsNullOrWhiteSpace(key))
                 throw new ArgumentNullException(nameof(key));
-
-            if (!await IsRedisAvailable())
-            {
-                _logger.LogWarning("[Redis] Unavailable. Skipping exists check for key: {Key}", key);
-                return false;
-            }
 
             try
             {

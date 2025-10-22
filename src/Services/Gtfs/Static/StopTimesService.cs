@@ -16,22 +16,33 @@ public class StopTimesService : IStopTimesService
 {
     private readonly GtfsDbContext _gtfsDbContext;
     private readonly ICassandraService _cassandraService;
+    private readonly IRedisService _redisService;
     private readonly ILogger<StopTimesService> _logger;
 
     public StopTimesService(
         GtfsDbContext gtfsDbContext,
         ICassandraService cassandraService,
+        IRedisService redisService,
         ILogger<StopTimesService> logger)
     {
         _gtfsDbContext = gtfsDbContext;
         _cassandraService = cassandraService;
+        _redisService = redisService;
         _logger = logger;
     }
 
-    private IQueryable<string> GetActiveServiceIds(DateTime date)
+    private async Task<List<string>> GetActiveServiceIdsAsync(DateTime date)
     {
-        DateOnly dateOnly = DateOnly.FromDateTime(date);
+        string cacheKey = $"active_service_ids:{date:yyyy-MM-dd}";
+        
+        List<String>? cachedServiceIds = await _redisService.GetAsync<List<string>>(cacheKey);
+        
+        if (cachedServiceIds != null)
+        {
+            return cachedServiceIds;
+        }
 
+        DateOnly dateOnly = DateOnly.FromDateTime(date);
         string dayOfWeek = date.DayOfWeek.ToString().ToLower();
         string dayColumn = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
 
@@ -41,7 +52,7 @@ public class StopTimesService : IStopTimesService
                         EF.Property<int>(c, dayColumn) == (int)StatusType.Active)
             .Select(c => c.ServiceId);
 
-        return calendarQuery
+        var serviceIds = await calendarQuery
             .Union(_gtfsDbContext.CalendarDates
                 .Where(cd =>
                     EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Added)
@@ -49,7 +60,12 @@ public class StopTimesService : IStopTimesService
             .Except(_gtfsDbContext.CalendarDates
                 .Where(cd =>
                     EF.Functions.ToDate(cd.Date, "YYYYMMDD") == dateOnly && cd.ExceptionType == ExceptionType.Removed)
-                .Select(cd => cd.ServiceId));
+                .Select(cd => cd.ServiceId))
+            .ToListAsync();
+
+        await _redisService.SetAsync(cacheKey, serviceIds, TimeSpan.FromHours(1));
+
+        return serviceIds;
     }
 
     public async Task<List<StopTime>> GetAllAsync(int page = 1, int pageSize = 100)
@@ -79,7 +95,7 @@ public class StopTimesService : IStopTimesService
 
         if (!ignoreCalendar)
         {
-            List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
+            List<string> activeServiceIds = await GetActiveServiceIdsAsync(date);
 
             Trip? trip = await _gtfsDbContext.Trips
                 .Where(t => t.TripId == tripId && activeServiceIds.Contains(t.ServiceId))
@@ -113,7 +129,7 @@ public class StopTimesService : IStopTimesService
 
         ISession session = await _cassandraService.GetSessionAsync();
 
-        string query = "SELECT * FROM stop_times WHERE stop_id = ? ALLOW FILTERING";
+        string query = "SELECT * FROM stop_times WHERE stop_id = ?";
 
         PreparedStatement prepared = await session.PrepareAsync(query);
         BoundStatement bound = prepared.Bind(stopId);
@@ -128,7 +144,7 @@ public class StopTimesService : IStopTimesService
 
         if (!ignoreCalendar)
         {
-            List<string> activeServiceIds = await GetActiveServiceIds(date).ToListAsync();
+            List<string> activeServiceIds = await GetActiveServiceIdsAsync(date);
             List<string> activeTripIds = await _gtfsDbContext.Trips
                 .Where(t => activeServiceIds.Contains(t.ServiceId))
                 .Select(t => t.TripId)
