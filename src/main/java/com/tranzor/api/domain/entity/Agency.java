@@ -3,7 +3,9 @@ package com.tranzor.api.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -55,6 +57,7 @@ public class Agency {
     @Column(name = "gtfs_expire_at")
     private LocalDateTime gtfsExpireAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "realtime_urls", columnDefinition = "jsonb")
     private String realtimeUrls;
 

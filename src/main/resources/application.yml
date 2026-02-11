@@ -26,7 +26,7 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         jdbc:
           lob:
             non_contextual_creation: true
@@ -118,11 +118,12 @@ management:
 # Tranzor Specific Configuration
 tranzor:
   gtfs:
-    storage-path: ${TRANZOR_GTFS_STORAGE_PATH:/data/gtfs}
-    temp-path: ${TRANZOR_GTFS_TEMP_PATH:/tmp/gtfs}
+    storage-path: ${TRANZOR_GTFS_STORAGE_PATH:data/gtfs}
+    temp-path: ${TRANZOR_GTFS_TEMP_PATH:data/temp}
     auto-import: ${TRANZOR_GTFS_AUTO_IMPORT:true}
-    agencies-config-url: ${TRANZOR_AGENCIES_CONFIG_URL:file:///data/agencies.json}
-  
+    agencies-config-url: ${TRANZOR_AGENCIES_CONFIG_URL:data/agencies.json}
+    expiration-days: ${TRANZOR_GTFS_EXPIRATION_DAYS:30}
+
   otp:
     base-url: ${OTP_BASE_URL:http://localhost:8081/otp}
     timeout: ${OTP_TIMEOUT:30000}
@@ -140,10 +141,10 @@ tranzor:
 # Logging
 logging:
   level:
-    com.tranzor: DEBUG
+    com.tranzor: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

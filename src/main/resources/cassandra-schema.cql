@@ -27,8 +27,6 @@ CREATE TABLE IF NOT EXISTS stop_times (
     stop_headsign text,
     pickup_type int,
     drop_off_type int,
-    continuous_pickup int,
-    continuous_drop_off int,
     shape_dist_traveled double,
     timepoint int,
     agency_id text,

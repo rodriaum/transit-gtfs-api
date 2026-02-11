@@ -54,11 +54,6 @@ public class StopTimeCassandra {
     @Column("drop_off_type")
     private Integer dropOffType;
 
-    @Column("continuous_pickup")
-    private Integer continuousPickup;
-
-    @Column("continuous_drop_off")
-    private Integer continuousDropOff;
 
     @Column("shape_dist_traveled")
     private Double shapeDistTraveled;
