@@ -1,0 +1,151 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api/v1/tranzor
+
+spring:
+  application:
+    name: tranzor-api
+  
+  # PostgreSQL + PostGIS
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:tranzor}
+    username: ${DB_USERNAME:tranzor}
+    password: ${DB_PASSWORD:tranzor123}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    database-platform: org.hibernate.spatial.dialect.postgis.PostgisPG10Dialect
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          lob:
+            non_contextual_creation: true
+        default_schema: public
+    show-sql: false
+  
+  # Flyway
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+  
+  # Redis Cache
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 60000
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  
+  # Cassandra (para dados históricos de grande volume)
+  cassandra:
+    keyspace-name: ${CASSANDRA_KEYSPACE:tranzor}
+    contact-points: ${CASSANDRA_HOST:localhost}
+    port: ${CASSANDRA_PORT:9042}
+    local-datacenter: ${CASSANDRA_DATACENTER:datacenter1}
+    schema-action: create-if-not-exists
+  
+  # Cache
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000 # 10 minutos
+  
+  # Security
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:tranzor-secret-key-change-this-in-production-minimum-256-bits}
+  expiration: ${JWT_EXPIRATION:86400000} # 24 horas
+
+# Rate Limiting
+resilience4j:
+  ratelimiter:
+    instances:
+      api:
+        limit-for-period: 100
+        limit-refresh-period: 60s
+        timeout-duration: 0s
+  circuitbreaker:
+    instances:
+      otp:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10000
+        sliding-window-size: 10
+
+# OpenAPI/Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# Tranzor Specific Configuration
+tranzor:
+  gtfs:
+    storage-path: ${TRANZOR_GTFS_STORAGE_PATH:/data/gtfs}
+    temp-path: ${TRANZOR_GTFS_TEMP_PATH:/tmp/gtfs}
+    auto-import: ${TRANZOR_GTFS_AUTO_IMPORT:true}
+    agencies-config-url: ${TRANZOR_AGENCIES_CONFIG_URL:file:///data/agencies.json}
+  
+  otp:
+    base-url: ${OTP_BASE_URL:http://localhost:8081/otp}
+    timeout: ${OTP_TIMEOUT:30000}
+  
+  cache:
+    nearby-stops-ttl: ${TRANZOR_CACHE_NEARBY_STOPS_TTL:3600} # 1 hora
+    departures-ttl: ${TRANZOR_CACHE_DEPARTURES_TTL:60} # 1 minuto
+    routes-ttl: ${TRANZOR_CACHE_ROUTES_TTL:1800} # 30 minutos
+  
+  search:
+    default-radius: ${TRANZOR_SEARCH_DEFAULT_RADIUS:500} # metros
+    max-radius: ${TRANZOR_SEARCH_MAX_RADIUS:5000} # metros
+    max-results: ${TRANZOR_SEARCH_MAX_RESULTS:50}
+
+# Logging
+logging:
+  level:
+    com.tranzor: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/tranzor.log

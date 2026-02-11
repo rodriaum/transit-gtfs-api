@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # PostgreSQL com PostGIS
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: tranzor-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - tranzor-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para cache
+  redis:
+    image: redis:7-alpine
+    container_name: tranzor-redis
+    command: redis-server ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tranzor-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Cassandra para grandes volumes
+  cassandra:
+    image: cassandra:5.0
+    container_name: tranzor-cassandra
+    ports:
+      - "${CASSANDRA_PORT}:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: tranzor-cluster
+      CASSANDRA_DC: ${CASSANDRA_DATACENTER}
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 100M
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    networks:
+      - tranzor-network
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # OpenTripPlanner
+  otp:
+    image: opentripplanner/opentripplanner:2.5.0
+    container_name: tranzor-otp
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./otp/graphs:/var/opentripplanner/graphs
+      - ./otp/cache:/var/opentripplanner/cache
+    environment:
+      JAVA_OPTS: -Xmx4G
+    networks:
+      - tranzor-network
+    command: --load --serve
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/otp/actuators/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # PgAdmin (opcional, para gestão do PostgreSQL)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tranzor-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@tranzor.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - tranzor-network
+    depends_on:
+      - postgres
+
+  # Redis Commander (opcional, para visualizar cache)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: tranzor-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8082:8081"
+    networks:
+      - tranzor-network
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  cassandra_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  tranzor-network:
+    driver: bridge
