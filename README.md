@@ -1,62 +1,239 @@
-# Tranzor - API
+# Tranzor API - Public Transport API
 
-Tranzor API (ASP.NET) permite consultar horários, paradas, viagens e próximas partidas de itinerários.
+API completa de transportes públicos para Portugal, baseada em dados GTFS.
 
-<!--
-## Docs
+## 🚀 Funcionalidades
 
-Você pode acessar os documentos da API por [aqui](https://metro-porto.gitbook.io/metro-porto)
--->
+- ✅ Consultar próximas partidas por paragem
+- ✅ Consultar detalhes de rotas/linhas
+- ✅ Consultar viagens ativas
+- ✅ Consultar horários completos
+- ✅ Calcular rotas entre origem e destino (integração OTP)
+- ✅ Procurar paragens próximas com PostGIS
+- ✅ Suporte a queries espaciais
+- ✅ Sistema de cache com Redis
+- ✅ Processamento automático de ficheiros GTFS
+- ✅ Suporte a múltiplas agências de transporte
 
-## Primeiros Passos
+## 🛠️ Stack Tecnológica
 
-Antes de iniciar o projeto pela primeira vez, siga os passos abaixo:
+- **Java 21**
+- **Spring Boot 3.2**
+- **PostgreSQL 16 + PostGIS**
+- **Redis** (cache)
+- **Apache Cassandra** (dados históricos)
+- **OpenTripPlanner** (planeamento de rotas)
+- **Gradle**
+- **Flyway** (migrações)
+- **Swagger/OpenAPI** (documentação)
+- **Docker & Docker Compose**
 
-1. Configure o arquivo `.env` com as variáveis de ambiente necessárias.
-2. Acesse o banco de dados PostgreSQL e execute o seguinte comando para habilitar o suporte a dados geoespaciais:
+## 📋 Requisitos
 
-   ```sql
-   CREATE EXTENSION postgis;
-   ```
+- Java 21+
+- Docker & Docker Compose
+- Gradle 8+
 
-3. Após isso, execute o comando para aplicar as migrações do Entity Framework:
+## 🚀 Quick Start
 
-   ```bash
-   dotnet ef database update
-   ```
+### 1. Clonar o repositório
 
-4. Após rodar o comando acima, é necessário executar o arquivo [SQL/cities.sql](https://github.com/rodriaum/tranzor-api/tree/dev/SQL) diretamente no banco de dados. 
-Este arquivo contém dados geográficos grandes (colunas `geom`) das zonas das cidades, por isso, não deve ser aberto e copiado manualmente.
+```bash
+git clone https://github.com/your-org/tranzor-api.git
+cd tranzor-api
+```
 
-## Arquitetura Técnica
+### 2. Configurar variáveis de ambiente
 
-- **Framework**: ASP.NET Core (.NET 9.0)
-- **Base de Dados**: PostgreSQL + PostGIS, Apache Cassandra e Redis
+```bash
+# Copiar template de configuração
+cp .env.example .env
 
-## Funcionalidades
+# Editar credenciais (opcional para desenvolvimento)
+nano .env
+```
 
-- **Partidas**: Obtenha informações de partidas para qualquer paragem
-- **Planeamento de Rotas**: Aceda a informações completas de rotas e viagens para planeamento de percursos
-- **Dados Geográficos**: Recupere dados de coordenadas para mapeamento e serviços de localização, agora com suporte a queries espaciais
-- **Informações de Horários**: Aceda a horários detalhados e calendários de serviços
-- **Cálculo de Tarifas**: Obtenha informações de preços e regras tarifárias
-- **Informações de Transferência**: Encontre pontos de ligação entre diferentes linhas
-- **PostGIS**: As tabelas `gtfs_stops` e `gtfs_shapes` possuem colunas geográficas (`location` e `geom`) usando tipos `geography (point)` e `geometry (point)` do PostGIS, permitindo consultas espaciais e integração avançada com mapas.
+⚠️ **Importante**: O arquivo `.env` contém credenciais sensíveis. **NUNCA** o commite no Git!
+Ver guia completo em [ENV_CONFIG.md](ENV_CONFIG.md)
 
-## Processamento de Dados
+### 3. Iniciar serviços com Docker Compose
 
-A API processa dados GTFS originais e converte-os para um formato otimizado armazenado no PostgreSQL. O Redis é utilizado para cache de consultas frequentes, garantindo tempos de resposta rápidos. O sistema inclui funcionalidades de recarregamento de dados para atualizações periódicas das informações de trânsito.
+```bash
+docker-compose up -d
+```
 
-## Padrões de Dados
+Isto irá iniciar:
+- PostgreSQL com PostGIS (porta 5432)
+- Redis (porta 6379)
+- Cassandra (porta 9042)
+- OpenTripPlanner (porta 8081)
+- PgAdmin (porta 5050)
+- Redis Commander (porta 8082)
 
-Esta API segue os padrões GTFS (General Transit Feed Specification), garantindo compatibilidade com aplicações de trânsito e fornecendo formatos de dados padronizados para informações de transporte público.
+### 3. Compilar a aplicação
 
-## Informações Técnicas
+```bash
+./gradlew clean build
+```
 
-- **URL Base**: `/api/v1/tranzor`
-- **Formatos Suportados**: JSON, Texto Simples
-- **OpenTripPlanner**: Precisa configurar o [OTP](https://github.com/opentripplanner/OpenTripPlanner) para planejar rotas.
-- **Paragem por Cidade**: Para conseguir procurar paragens por cidade precisa importar o [cities.sql](https://github.com/rodriaum/tranzor-api/blob/dev/SQL/cities.sql)
+### 4. Executar a aplicação
 
-## Licença
-[MIT License](https://github.com/rodriaum/tranzor-api?tab=MIT-1-ov-file#MIT-1-ov-file)
+```bash
+./gradlew bootRun
+```
+
+A API estará disponível em: `http://localhost:8080/api/v1/tranzor`
+
+## 📚 Documentação da API
+
+Aceda à documentação Swagger em:
+```
+http://localhost:8080/api/v1/tranzor/swagger-ui.html
+```
+
+## 🔌 Endpoints Principais
+
+### Paragens (Stops)
+
+```http
+GET /stops/{stopId}?agencyId={agencyId}
+GET /stops/nearby?latitude=41.1496&longitude=-8.6109&radiusMeters=500
+GET /stops/search?q=bolhão
+GET /stops?agencyId=metro_porto
+```
+
+### Partidas (Departures)
+
+```http
+GET /departures?stopId=STOP123&agencyId=metro_porto&limit=10
+GET /departures/by-route?stopId=STOP123&routeId=ROUTE1&agencyId=metro_porto
+GET /departures/schedule?stopId=STOP123&agencyId=metro_porto&date=2026-02-11
+```
+
+### Rotas (Routes)
+
+```http
+GET /routes/{routeId}?agencyId=metro_porto
+GET /routes?agencyId=metro_porto
+GET /routes/by-type?routeType=1&agencyId=metro_porto
+GET /routes/search?q=azul
+```
+
+### Planeamento de Viagem (Trip Planner)
+
+```http
+GET /trip-planner/plan?fromLat=41.1496&fromLon=-8.6109&toLat=41.1579&toLon=-8.6291
+```
+
+## 🗄️ Estrutura de Dados
+
+### Ficheiro de Configuração de Agências
+
+Criar `/data/agencies.json`:
+
+```json
+[
+    {
+        "agency_id": "metro_porto",
+        "name": "Metro do Porto",
+        "image_url": "",
+        "gtfs_url": "https://www.metrodoporto.pt/.../gtfs.zip",
+        "gtfs_expire_at": "",
+        "realtime_urls": {
+            "VehiclePositions": {
+                "realtime_file_type": "WebSocket",
+                "url": "wss://mmt.portodigital.pt/websocket"
+            }
+        }
+    }
+]
+```
+
+## 🔧 Configuração
+
+### Variáveis de Ambiente
+
+Pode configurar através de variáveis de ambiente:
+
+```bash
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/tranzor
+export SPRING_DATASOURCE_USERNAME=tranzor
+export SPRING_DATASOURCE_PASSWORD=tranzor123
+export SPRING_DATA_REDIS_HOST=localhost
+export SPRING_DATA_REDIS_PORT=6379
+```
+
+### application.yml
+
+Configuração principal em `src/main/resources/application.yml`
+
+## 📊 PostGIS - Queries Espaciais
+
+A API usa PostGIS para queries geográficas eficientes:
+
+```sql
+-- Encontrar paragens num raio de 500 metros
+SELECT * FROM stops 
+WHERE ST_DWithin(
+    location::geography,
+    ST_MakePoint(-8.6109, 41.1496)::geography,
+    500
+);
+```
+
+## 🔄 Importação de Dados GTFS
+
+A importação de GTFS pode ser feita:
+
+1. **Automaticamente** - na inicialização da aplicação
+2. **Manualmente** - através de endpoint específico
+3. **Agendado** - usando scheduled tasks
+
+## 🧪 Testes
+
+```bash
+# Executar todos os testes
+./gradlew test
+
+# Executar testes de integração
+./gradlew integrationTest
+```
+
+## 🐳 Docker
+
+### Build da imagem
+
+```bash
+docker build -t tranzor-api .
+```
+
+### Executar com Docker
+
+```bash
+docker run -p 8080:8080 \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/tranzor \
+  -e SPRING_DATA_REDIS_HOST=redis \
+  tranzor-api
+```
+
+## 📈 Performance
+
+- **Cache Redis** - reduz queries ao database
+- **PostGIS** - queries geográficas ultra-rápidas
+- **Índices otimizados** - nas tabelas principais
+- **Cassandra** - para dados históricos de grande volume
+- **Connection pooling** - HikariCP
+
+## 🔒 Segurança
+
+- JWT Authentication (configurável)
+- Rate Limiting
+- CORS configurável
+- Input validation
+
+## 📝 Logs
+
+Os logs são estruturados e podem ser vistos em:
+```
+logs/tranzor.log
+```

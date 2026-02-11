@@ -1,43 +1,46 @@
-# Esta fase é usada durante a execução no VS no modo rápido (Padrão para a configuração de Depuração)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
+# Multi-stage build
+
+# Stage 1: Build
+FROM gradle:8.5-jdk21 AS build
 WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
 
-RUN apk add --no-cache icu-libs
+# Copy gradle files
+COPY build.gradle settings.gradle ./
+COPY gradle ./gradle
 
-# Esta fase é usada para compilar o projeto de serviço
-FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
-ARG BUILD_CONFIGURATION=Release
-WORKDIR /src
-COPY ["src/Tranzor.csproj", "src/"]
-RUN dotnet restore "src/Tranzor.csproj"
-COPY . .
-WORKDIR "/src/src"
-RUN dotnet build "Tranzor.csproj" -c $BUILD_CONFIGURATION -o /app/build
+# Download dependencies
+RUN gradle dependencies --no-daemon
 
-# Esta fase é usada para publicar o projeto de serviço a ser copiado para a fase final
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "Tranzor.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# Copy source code
+COPY src ./src
 
-# Esta fase é usada na produção ou quando executada no VS no modo normal
-FROM base AS final
+# Build application
+RUN gradle clean build -x test --no-daemon
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
-COPY --from=publish /app/publish .
 
-COPY Config /app/Config
+# Create non-root user
+RUN addgroup -S tranzor && adduser -S tranzor -G tranzor
 
-# Criar usuário não-root para segurança
-RUN addgroup -g 1000 tranzor && \
-    adduser -D -u 1000 -G tranzor tranzor && \
-    chown -R tranzor:tranzor /app
+# Copy jar from build stage
+COPY --from=build /app/build/libs/*.jar app.jar
 
-RUN mkdir -p /app/Data && \
-    chown -R tranzor:tranzor /app/Data
+# Create directories for data
+RUN mkdir -p /data/gtfs /data/otp /tmp/gtfs && \
+    chown -R tranzor:tranzor /data /tmp/gtfs
 
-RUN chmod -R 755 /app/Data
-
+# Switch to non-root user
 USER tranzor
 
-ENTRYPOINT ["dotnet", "Tranzor.dll"]
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/tranzor/actuator/health || exit 1
+
+# Run application
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
