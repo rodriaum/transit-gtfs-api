@@ -122,32 +122,6 @@ CREATE INDEX idx_trip_route_id ON trips(route_id);
 CREATE INDEX idx_trip_service_id ON trips(service_id);
 CREATE INDEX idx_trip_direction_id ON trips(direction_id);
 
--- Stop times table
-CREATE TABLE stop_times (
-    id BIGSERIAL PRIMARY KEY,
-    trip_id VARCHAR(100) NOT NULL,
-    arrival_time INTEGER,
-    departure_time INTEGER,
-    stop_id VARCHAR(100) NOT NULL,
-    stop_sequence INTEGER NOT NULL,
-    stop_headsign VARCHAR(255),
-    pickup_type INTEGER,
-    drop_off_type INTEGER,
-    continuous_pickup INTEGER,
-    continuous_drop_off INTEGER,
-    shape_dist_traveled DOUBLE PRECISION,
-    timepoint INTEGER,
-    agency_id VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_stoptime_trip_id ON stop_times(trip_id);
-CREATE INDEX idx_stoptime_stop_id ON stop_times(stop_id);
-CREATE INDEX idx_stoptime_sequence ON stop_times(stop_sequence);
-CREATE INDEX idx_stoptime_arrival ON stop_times(arrival_time);
-CREATE INDEX idx_stoptime_departure ON stop_times(departure_time);
-
 -- Calendar table
 CREATE TABLE calendar (
     id BIGSERIAL PRIMARY KEY,
@@ -190,6 +164,5 @@ COMMENT ON TABLE agencies IS 'Agências de transporte público';
 COMMENT ON TABLE stops IS 'Paragens/Estações de transporte';
 COMMENT ON TABLE routes IS 'Rotas/Linhas de transporte';
 COMMENT ON TABLE trips IS 'Viagens/Percursos';
-COMMENT ON TABLE stop_times IS 'Horários de paragem';
 COMMENT ON TABLE calendar IS 'Calendários de serviço';
 COMMENT ON TABLE calendar_dates IS 'Exceções de calendário';

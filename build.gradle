@@ -82,6 +82,9 @@ dependencies {
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.1.0'
     implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.1.0'
     implementation 'io.github.resilience4j:resilience4j-ratelimiter:2.1.0'
+
+    // Dotenv
+    implementation("io.github.cdimascio:dotenv-java:3.2.0")
     
     // Lombok - set explicit version to ensure resolution if BOM is missing
     compileOnly 'org.projectlombok:lombok:1.18.30'
@@ -102,7 +105,7 @@ dependencies {
 }
 
 // Ensure the compiler uses the release flag so compilation targets Java 21 even if the JVM differs
-tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+tasks.withType(JavaCompile).configureEach {
     options.release.set(21)
     // Use the toolchain's javac so annotation processors run with the matching compiler implementation
     javaCompiler.set(javaToolchains.compilerFor {
