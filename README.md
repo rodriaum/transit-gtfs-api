@@ -1,4 +1,4 @@
-# Tranzor - API
+# Tranzor API - LEGACY!
 
 Tranzor API (ASP.NET) permite consultar horários, paradas, viagens e próximas partidas de itinerários.
 
