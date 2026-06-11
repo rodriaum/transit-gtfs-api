@@ -1,5 +1,8 @@
 # Tranzor API
 
+> [!CAUTION]
+> Esta é uma versão **dev**, ou seja, um projeto em desenvolvimento. Tudo aqui pode ser lançado oficialmente no futuro, mas, até lá, pode conter bugs.
+
 API de transportes públicos baseada em GTFS.
 
 ## Funcionalidades
